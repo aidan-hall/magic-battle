@@ -23,8 +23,8 @@ int main(void) {
   alien_gfx =
       oamAllocateGfx(&oamMain, SpriteSize_32x32, SpriteColorFormat_256Color);
   dmaCopy(alien1Tiles, alien_gfx, 32 * 32);
-  u8* alien1TilesU8 = alien1Tiles;
-  u8* wiggly = alien1TilesU8 + 32*32;
+  const u8* alien1TilesU8 = reinterpret_cast<const u8*>(alien1Tiles);
+  const u8* wiggly = alien1TilesU8 + 32*32;
 
   dmaCopy(alien1Pal, SPRITE_PALETTE, alien1PalLen);
 
