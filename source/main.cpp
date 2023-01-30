@@ -5,13 +5,15 @@
 #include "tecs.hpp"
 #include "unusual_id_manager.hpp"
 #include <algorithm>
-#include <alien1.h>
+#include <AlienSprite_gfx.h>
+#include <AlienSprite_pal.h>
+#include <PlayerSprite_gfx.h>
+#include <PlayerSprite_pal.h>
 #include <array>
 #include <cassert>
 #include <cstdint>
 #include <gl2d.h>
 #include <nds.h>
-#include <player.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <unordered_set>
@@ -205,18 +207,16 @@ int main(void) {
   constexpr int alien_height = 32;
   constexpr SpriteSize alien_size = sprite_size(alien_width, alien_height);
   alien_gfx = oamAllocateGfx(&oamMain, alien_size, SpriteColorFormat_256Color);
-  dmaCopy(alien1Tiles, alien_gfx, SPRITE_SIZE_PIXELS(alien_size));
+  dmaCopy(AlienSprite_gfx, alien_gfx, SPRITE_SIZE_PIXELS(alien_size));
 
   // Load palettes
   vramSetBankF(VRAM_F_LCD);
-  dmaCopy(alien1Pal, &VRAM_F_EXT_SPR_PALETTE[0][0], alien1PalLen);
-  dmaCopy(playerPal, &VRAM_F_EXT_SPR_PALETTE[1][0], playerPalLen);
+  dmaCopy(AlienSprite_pal, &VRAM_F_EXT_SPR_PALETTE[0][0], AlienSprite_pal_size);
+  dmaCopy(PlayerSprite_pal, &VRAM_F_EXT_SPR_PALETTE[1][0], PlayerSprite_pal_size);
   vramSetBankF(VRAM_F_SPRITE_EXT_PALETTE);
 
-  // dmaCopy(alien1Pal, SPRITE_PALETTE, alien1PalLen);
-
-  const u8 *alien1TilesU8 = reinterpret_cast<const u8 *>(alien1Tiles);
-  const u8 *wiggly = alien1TilesU8 + 32 * 32;
+  const u8 *AlienSprite_gfxU8 = reinterpret_cast<const u8 *>(AlienSprite_gfx);
+  const u8 *wiggly = AlienSprite_gfxU8 + 32 * 32;
 
   std::array<Tecs::Entity, 10> aliens;
   std::for_each(aliens.begin(), aliens.end(),
@@ -251,7 +251,7 @@ int main(void) {
   constexpr SpriteSize player_size = sprite_size(player_width, player_height);
   u16 *player_gfx =
       oamAllocateGfx(&oamMain, player_size, SpriteColorFormat_256Color);
-  dmaCopy(playerTiles, player_gfx, SPRITE_SIZE_PIXELS(player_size));
+  dmaCopy(PlayerSprite_gfx, player_gfx, SPRITE_SIZE_PIXELS(player_size));
 
   // dmaCopy(playerPal, &VRAM_F_EXT_SPR_PALETTE[0][0], playerPalLen);
 
@@ -275,7 +275,7 @@ int main(void) {
     if (held & KEY_A) {
       dmaCopy(wiggly, alien_gfx, 32 * 32);
     } else {
-      dmaCopy(alien1Tiles, alien_gfx, 32 * 32);
+      dmaCopy(AlienSprite_gfx, alien_gfx, 32 * 32);
     }
 
     if (held & KEY_START)
