@@ -35,6 +35,20 @@ inline fix operator-(const fix &a, const fix &b) {
   return nds::fix{a.bits - b.bits};
 }
 
+inline fix operator*(const fix &a, const int32_t &b) {
+  return a * fix::from_int(b);
+}
+inline fix operator/(const fix &num, const int32_t &den) {
+  return num/fix::from_int(den);
+}
+inline fix operator+(const fix &a, const int32_t &b) {
+  return a + fix::from_int(b);
+}
+inline fix operator-(const fix &a, const int32_t &b) {
+  return a - fix::from_int(b);
+}
+
+
 inline bool operator<(const fix &lhs, const fix &rhs) {
   return lhs.bits < rhs.bits;
 }
