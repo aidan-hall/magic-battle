@@ -1,26 +1,27 @@
 #ifndef TECS_H
 #define TECS_H
 
-#include <bitset>
+#include <vector>
 #include <cassert>
+#include <bitset>
 #include <chrono>
 #include <concepts>
 #include <cstdint>
-#include <set>
+#include <unordered_set>
 #include <span>
 #include <tuple>
 #include <typeindex>
 #include <typeinfo>
 #include <unordered_map>
-#include <vector>
 
 #include "unusual_circular_queue.hpp"
+#include "unusual_id_manager.hpp"
 
 // 'Inspired' by https://austinmorlan.com/posts/entity_component_system
 
 namespace Tecs {
 
-using Entity = std::size_t;
+using Entity = size_t;
 using ComponentId = std::uint8_t;
 // This value means a Signature should fit in a long/64-bit integer.
 static constexpr std::size_t MAX_COMPONENTS = 64;
@@ -47,7 +48,7 @@ using InterestedId = std::size_t;
 
 struct InterestManager {
   InterestedId nextInterested = 0;
-  std::vector<std::set<Entity>> interestingSets;
+  std::vector<std::unordered_set<Entity>> interestingSets;
   std::vector<InterestCondition> interestConditions;
   std::unordered_map<InterestedId, size_t> interestCount;
 
@@ -71,7 +72,7 @@ struct InterestManager {
            ((mask & condition.exclude) == 0);
   }
 
-  std::span<std::set<Entity>> interestsOf(InterestedId id) {
+  std::span<std::unordered_set<Entity>> interestsOf(InterestedId id) {
     return std::span{&interestingSets[id], interestCount.at(id)};
   }
 };
@@ -84,7 +85,7 @@ struct Coordinator {
 
   std::unordered_map<std::type_index, ComponentId> componentIds;
 
-  Entity nextEntity = 0;
+  unusual::id_manager<Entity, 200> entity_manager;
   unusual::circular_queue<Entity, 200> recycledEntities;
   unusual::circular_queue<Entity, 5> pendingDestructions;
 
@@ -171,7 +172,7 @@ struct Coordinator {
 
   template <typename Component> inline Component &getComponent(Entity e) {
     // TODO: Add assertion that Entity exists.
-    assert(e < nextEntity);
+    // assert(e < nextEntity);
     assert(hasComponent<Component>(e));
 
     std::vector<Component> &components = getComponents<Component>();

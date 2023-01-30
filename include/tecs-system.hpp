@@ -4,12 +4,12 @@
 
 namespace Tecs {
   struct SingleEntitySetSystem {
-    std::function<void(Coordinator &, const std::set<Entity> &)> run;
+    std::function<void(Coordinator &, const std::unordered_set<Entity> &)> run;
   };
 
   struct MultipleEntitySetSystem {
     std::function<void(Coordinator &,
-      const std::span<const std::set<Entity>>)>
+      const std::span<const std::unordered_set<Entity>>)>
     run;
   };
 
@@ -23,4 +23,6 @@ namespace Tecs {
 
   void registerSystemComponents(Coordinator&);
   void runSystems(Coordinator&, const InterestedId);
+
+  InterestedId makeSystemInterest(Coordinator&, const ComponentMask& mask, const ComponentMask& exclude = {});
 }

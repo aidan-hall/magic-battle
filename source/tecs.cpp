@@ -13,14 +13,7 @@ Coordinator::Coordinator() {
 }
 
 Entity Coordinator::newEntity() {
-  Entity e;
-  if (recycledEntities.empty()) {
-    e = nextEntity++;
-  } else {
-    e = recycledEntities.front();
-    recycledEntities.dequeue();
-  }
-  return e;
+  return entity_manager.allocate();
 }
 void Coordinator::destroyEntity(Entity e) {
   getComponent<ComponentMask>(e).reset();

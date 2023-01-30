@@ -1,5 +1,5 @@
-#include "tecs.hpp"
 #include "tecs-system.hpp"
+#include "tecs.hpp"
 
 namespace Tecs {
 
@@ -36,6 +36,14 @@ void runSystems(Coordinator &ecs, const InterestedId interested_id) {
         ecs, ecs.interests.interestsOf(
                  ecs.getComponent<InterestedClient>(system).id));
   }
+}
+
+InterestedId makeSystemInterest(Coordinator &ecs, const ComponentMask &mask,
+                                const ComponentMask &exclude) {
+  return ecs.interests.registerInterests(
+      {{ecs.componentMask<PerEntitySystem>() | mask, exclude},
+       {ecs.componentMask<SingleEntitySetSystem>() | mask, exclude},
+       {ecs.componentMask<MultipleEntitySetSystem>() | mask, exclude}});
 }
 
 } // namespace Tecs
