@@ -18,10 +18,10 @@ target_compile_options(MagicBattle PRIVATE
   -Wextra
   -Wimplicit-fallthrough
   -Wno-volatile
-  -Werror
-  $<$<CONFIG:DEBUG>:-g3>
-  $<$<CONFIG:DEBUG>:-Og>
-  $<$<CONFIG:RELEASE>:-O3>
+  $<$<CONFIG:Release>:-Werror>
+  $<$<CONFIG:Debug>:-g3>
+  $<$<CONFIG:Debug>:-Og>
+  $<$<CONFIG:Release>:-O3>
   -g
 )
 
@@ -30,8 +30,9 @@ target_compile_options(MagicBattle PRIVATE
 # Images
 grit_add_binary_target(PlayerSprite sprites/player.png DEPTH 8 NO_MAP OPTIONS -Mh 2 -Mw 2)
 grit_add_binary_target(ZombieSprite sprites/zombie.png DEPTH 8 NO_MAP OPTIONS -Mh 2 -Mw 2)
+grit_add_binary_target(FireballSprite sprites/fireball.png DEPTH 8 NO_MAP OPTIONS)
 
-dkp_add_embedded_binary_library(Sprites PlayerSprite ZombieSprite)
+dkp_add_embedded_binary_library(Sprites PlayerSprite ZombieSprite FireballSprite)
 
 target_link_libraries(MagicBattle PUBLIC Sprites)
 

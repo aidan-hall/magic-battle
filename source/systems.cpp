@@ -1,6 +1,8 @@
-#include "components.hpp"
 #include "systems.hpp"
+#include "components.hpp"
+#include "tecs.hpp"
 #include <nds.h>
+#include <nds/arm9/exceptions.h>
 
 using namespace Tecs;
 void apply_velocity(Tecs::Coordinator &ecs,
@@ -20,5 +22,50 @@ void draw_sprites(Coordinator &ecs,
     const auto transform = ecs.getComponent<Position>(entity);
     oamSetXY(&oamMain, id.id, static_cast<int32_t>(transform.pos.x - id.width2),
              static_cast<int32_t>(transform.pos.y - id.height2));
+  }
+}
+
+void zombie_touch_movement(Coordinator &ecs,
+                           const std::unordered_set<Entity> &entities) {
+  if (keysHeld() & KEY_TOUCH) {
+
+    touchPosition touch_position;
+    touchRead(&touch_position);
+
+    for (const auto entity : entities) {
+      Vec3 *velocity = &ecs.getComponent<Velocity>(entity).v;
+      const Vec3 &position = ecs.getComponent<Position>(entity).pos;
+      velocity->x = nds::fix::from_int(touch_position.px) - position.x;
+      velocity->y = nds::fix::from_int(touch_position.py) - position.y;
+
+      normalizef32(reinterpret_cast<int32 *>(velocity));
+    }
+  }
+}
+
+void circular_collision_detection(Coordinator &ecs,
+                                  const std::unordered_set<Entity> &entities) {
+  for (const auto a : entities) {
+    const Collision &a_collision = ecs.getComponent<Collision>(a);
+    const Vec3 &a_position = ecs.getComponent<Position>(a).pos;
+    const nds::fix a_radius_squared = a_collision.radius * a_collision.radius;
+    for (const auto b : entities) {
+      if (b == a)
+        continue;
+
+      const Collision &b_collision = ecs.getComponent<Collision>(b);
+      if ((a_collision.mask & b_collision.layer) != 0) {
+        const Vec3 &b_position = ecs.getComponent<Position>(b).pos;
+        const nds::fix x_diff = a_position.x - b_position.x;
+        const nds::fix y_diff = a_position.y - b_position.y;
+        const nds::fix b_radius_squared =
+            b_collision.radius * b_collision.radius;
+        if ((x_diff * x_diff) + (y_diff * y_diff) <
+            (a_radius_squared + b_radius_squared)) {
+          printf("Collision between %d and %d\n", a, b);
+          a_collision.callback(ecs, a, b);
+        }
+      }
+    }
   }
 }

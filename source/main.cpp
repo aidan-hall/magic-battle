@@ -7,6 +7,8 @@
 #include "tecs.hpp"
 #include "unusual_id_manager.hpp"
 #include "util.hpp"
+#include <FireballSprite_gfx.h>
+#include <FireballSprite_pal.h>
 #include <PlayerSprite_gfx.h>
 #include <PlayerSprite_pal.h>
 #include <ZombieSprite_gfx.h>
@@ -17,12 +19,18 @@
 #include <cstdint>
 #include <gl2d.h>
 #include <nds.h>
+#include <nds/arm9/console.h>
+#include <nds/arm9/input.h>
+#include <nds/arm9/videoGL.h>
+#include <nds/dma.h>
+#include <nds/touch.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <unordered_set>
 
 unusual::id_manager<int, SPRITE_COUNT> sprite_id_manager;
 unusual::id_manager<int, MATRIX_COUNT> affine_index_manager;
+unusual::id_manager<int, 16> palette_index_manager;
 
 using namespace nds;
 
@@ -33,79 +41,99 @@ int main(void) {
   printf("Hello world.\n");
   printf("Hello world.\n");
   Tecs::Coordinator ecs;
-  touchPosition touch_position;
-
   registerSystemComponents(ecs);
 
-  ecs.registerComponent<Position>();
-  ecs.registerComponent<Velocity>();
-  ecs.registerComponent<SpriteInfo>();
-  ecs.registerComponent<Zombie>();
-  ecs.registerComponent<PhysicsSystemTag>();
-  ecs.registerComponent<RenderingSystemTag>();
+  const ComponentMask POSITION_COMPONENT = ecs.registerComponent<Position>();
+  const ComponentMask VELOCITY_COMPONENT = ecs.registerComponent<Velocity>();
+  const ComponentMask SPRITEINFO_COMPONENT =
+      ecs.registerComponent<SpriteInfo>();
+  const ComponentMask ZOMBIE_COMPONENT = ecs.registerComponent<Zombie>();
+  const ComponentMask PHYSICSSYSTEMTAG_COMPONENT =
+      ecs.registerComponent<PhysicsSystemTag>();
+  const ComponentMask RENDERINGSYSTEMTAG_COMPONENT =
+      ecs.registerComponent<RenderingSystemTag>();
+  const ComponentMask COLLISION_COMPONENT = ecs.registerComponent<Collision>();
+  const ComponentMask DEATHCALLBACK_COMPONENT =
+      ecs.registerComponent<DeathCallback>();
+  const ComponentMask ADMINSYSTEMTAG_COMPONENT =
+      ecs.registerComponent<AdminSystemTag>();
+  const ComponentMask DEATHMARK_COMPONENT = ecs.registerComponent<DeathMark>();
 
   const auto rendering_system_interest =
-      makeSystemInterest(ecs, ecs.componentMask<RenderingSystemTag>());
+      makeSystemInterest(ecs, RENDERINGSYSTEMTAG_COMPONENT);
   const auto physics_system_interest =
-      makeSystemInterest(ecs, ecs.componentMask<PhysicsSystemTag>());
+      makeSystemInterest(ecs, PHYSICSSYSTEMTAG_COMPONENT);
+  const auto admin_system_interest =
+      makeSystemInterest(ecs, ADMINSYSTEMTAG_COMPONENT);
 
   ecs.addComponents(ecs.newEntity(), SingleEntitySetSystem{draw_sprites},
                     RenderingSystemTag{},
                     InterestedClient{ecs.interests.registerInterests(
-                        {{ecs.componentMask<SpriteInfo, Position>()}})});
+                        {{POSITION_COMPONENT | SPRITEINFO_COMPONENT}})});
 
   ecs.addComponents(ecs.newEntity(), SingleEntitySetSystem{apply_velocity},
                     PhysicsSystemTag{},
                     InterestedClient{ecs.interests.registerInterests(
-                        {{ecs.componentMask<Position, Velocity>()}})});
+                        {{POSITION_COMPONENT | VELOCITY_COMPONENT}})});
 
   ecs.addComponents(
-      ecs.newEntity(),
-      SingleEntitySetSystem{
-          [&touch_position](Coordinator &ecs,
-                            const std::unordered_set<Entity> &entities) {
-            if (keysHeld() & KEY_TOUCH) {
-              for (const auto entity : entities) {
-                Vec3 *velocity = &ecs.getComponent<Velocity>(entity).v;
-                const Vec3 &position = ecs.getComponent<Position>(entity).pos;
-                velocity->x = fix::from_int(touch_position.px) - position.x;
-                velocity->y = fix::from_int(touch_position.py) - position.y;
-
-                normalizef32(reinterpret_cast<int32 *>(velocity));
-              }
-            }
-          }},
+      ecs.newEntity(), SingleEntitySetSystem{zombie_touch_movement},
       PhysicsSystemTag{},
-      InterestedClient{
-          ecs.interests.registerInterests({{ecs.componentMask<Zombie>()}})});
+      InterestedClient{ecs.interests.registerInterests({{ZOMBIE_COMPONENT}})});
 
+  ecs.addComponents(ecs.newEntity(),
+                    SingleEntitySetSystem{circular_collision_detection},
+                    PhysicsSystemTag{},
+                    InterestedClient{ecs.interests.registerInterests(
+                        {{POSITION_COMPONENT | COLLISION_COMPONENT}})});
+
+  // Death Mark Handling.
+  ecs.addComponents(ecs.newEntity(),
+                    PerEntitySystem{[](Coordinator &ecs, const Entity entity) {
+                      ecs.queueDestroyEntity(entity);
+                    }},
+                    AdminSystemTag{},
+                    InterestedClient{ecs.interests.registerInterests(
+                        {{DEATHMARK_COMPONENT, DEATHCALLBACK_COMPONENT}})});
+  ecs.addComponents(ecs.newEntity(),
+                    PerEntitySystem{[](Coordinator &ecs, const Entity entity) {
+                      ecs.getComponent<DeathCallback>(entity).callback(ecs,
+                                                                       entity);
+                      ecs.queueDestroyEntity(entity);
+                    }},
+                    AdminSystemTag{},
+                    InterestedClient{ecs.interests.registerInterests(
+                        {{DEATHMARK_COMPONENT | DEATHCALLBACK_COMPONENT}})});
   lcdMainOnBottom();
   videoSetMode(MODE_0_2D);
 
   vramSetBankA(VRAM_A_MAIN_SPRITE);
   oamInit(&oamMain, SpriteMapping_1D_32, true);
 
-  u16 *zombie_gfx;
-  constexpr int zombie_width = 16;
-  constexpr int zombie_height = 16;
-  constexpr SpriteSize zombie_size = sprite_size(zombie_width, zombie_height);
-  zombie_gfx =
-      oamAllocateGfx(&oamMain, zombie_size, SpriteColorFormat_256Color);
-  dmaCopy(ZombieSprite_gfx, zombie_gfx, SPRITE_SIZE_PIXELS(zombie_size));
-  // some change
+  // fireball
+  // constexpr int fireball_width = 8;
+  // constexpr int fireball_height = fireball_width;
+  // constexpr SpriteSize fireball_size =
+  //     sprite_size(fireball_width, fireball_height);
 
-  // Load palettes
+  // Load palettes and sprite data
   vramSetBankF(VRAM_F_LCD);
-  dmaCopy(ZombieSprite_pal, &VRAM_F_EXT_SPR_PALETTE[0][0],
-          ZombieSprite_pal_size);
-  dmaCopy(PlayerSprite_pal, &VRAM_F_EXT_SPR_PALETTE[1][0],
-          PlayerSprite_pal_size);
+  SpriteData zombie_sprite(&oamMain, ZombieSprite_gfx, 16, 16, 4,
+                           palette_index_manager, SpriteColorFormat_256Color,
+                           ZombieSprite_pal, ZombieSprite_pal_size,
+                           VRAM_F_EXT_SPR_PALETTE);
+  SpriteData player_sprite(
+      &oamMain, PlayerSprite_gfx, 16, 16, 1, palette_index_manager,
+      SpriteColorFormat_256Color, PlayerSprite_pal, PlayerSprite_pal_size,
+      VRAM_F_EXT_SPR_PALETTE);
   vramSetBankF(VRAM_F_SPRITE_EXT_PALETTE);
 
-  const u8 *ZombieSprite_gfxU8 = reinterpret_cast<const u8 *>(ZombieSprite_gfx);
-  const u8 *wiggly = ZombieSprite_gfxU8 + SPRITE_SIZE_PIXELS(zombie_size);
+  const auto self_destruct = [](Coordinator &ecs, Entity self, Entity other) {
+    std::ignore = other;
+    ecs.addComponent<DeathMark>(self);
+  };
 
-  std::array<Tecs::Entity, 10> zombies;
+  std::array<Tecs::Entity, 5> zombies;
   std::for_each(zombies.begin(), zombies.end(),
                 [&ecs](auto &e) { e = ecs.newEntity(); });
   {
@@ -113,16 +141,15 @@ int main(void) {
     int y = 10;
     int a = degreesToAngle(0);
     for (const auto zombie : zombies) {
-      make_sprite(ecs, zombie, sprite_id_manager, zombie_gfx, zombie_size,
-                  SpriteColorFormat_256Color, 0, zombie_width, zombie_height);
+      make_sprite(ecs, zombie, sprite_id_manager, zombie_sprite);
       ecs.addComponent<Zombie>(zombie);
-      ecs.addComponent<Position>(zombie);
-      ecs.getComponent<Position>(zombie) =
-          Position{{fix::from_int(x), fix::from_int(y), 0}, a};
-      ecs.addComponent<Velocity>(zombie);
 
-      ecs.getComponent<Velocity>(zombie) =
-          Velocity{{fix::from_float(1.5f), fix::from_float(1.5f), 0}};
+      ecs.addComponents(
+          zombie, Position{{fix::from_int(x), fix::from_int(y), 0}},
+          Velocity{{fix::from_float(1.5f), fix::from_float(1.5f), 0}},
+          Collision{0, ZOMBIE_LAYER | PLAYER_ATTACK_LAYER, zombie_sprite.width / 2,
+                    self_destruct});
+
       x += 20;
       y += 30;
       a += DEGREES_IN_CIRCLE / (2 * zombies.size());
@@ -130,24 +157,17 @@ int main(void) {
   }
 
   Entity player = ecs.newEntity();
-  ecs.addComponents(player, Position{Vec3{fix::from_int(SCREEN_WIDTH / 2),
-                                          fix::from_int(SCREEN_HEIGHT / 2), 0},
-                                     0});
-  constexpr int player_width = 16;
-  constexpr int player_height = 16;
-  constexpr SpriteSize player_size = sprite_size(player_width, player_height);
-  u16 *player_gfx =
-      oamAllocateGfx(&oamMain, player_size, SpriteColorFormat_256Color);
-  dmaCopy(PlayerSprite_gfx, player_gfx, SPRITE_SIZE_PIXELS(player_size));
+  ecs.addComponents(player,
+                    Position{Vec3{fix::from_int(SCREEN_WIDTH / 2),
+                                  fix::from_int(SCREEN_HEIGHT / 2), 0}});
 
-  // dmaCopy(playerPal, &VRAM_F_EXT_SPR_PALETTE[0][0], playerPalLen);
+  make_sprite(ecs, player, sprite_id_manager, player_sprite);
 
-  make_sprite(ecs, player, sprite_id_manager, player_gfx, player_size,
-              SpriteColorFormat_256Color, 1, player_width, player_height);
+  ecs.addComponents(player, Collision{ZOMBIE_LAYER, PLAYER_LAYER,
+                                      nds::fix::from_int(player_sprite.width) / 2,
+                                      self_destruct});
 
   while (1) {
-    touchRead(&touch_position);
-
     runSystems(ecs, rendering_system_interest);
 
     swiWaitForVBlank();
@@ -156,24 +176,29 @@ int main(void) {
     int held = keysCurrent();
 
     if (held & KEY_A) {
-      dmaCopy(wiggly, zombie_gfx, SPRITE_SIZE_PIXELS(zombie_size));
+      zombie_sprite.set_active_tile(1);
     } else {
-      dmaCopy(ZombieSprite_gfx, zombie_gfx,
-              SPRITE_SIZE_PIXELS(SpriteSize_16x16));
+      zombie_sprite.set_active_tile(0);
+    }
+
+    if (held & KEY_B) {
+      // also clears screen
+      consoleClear();
     }
 
     if (held & KEY_START)
       break;
     runSystems(ecs, physics_system_interest);
 
-    printf("\x1b[10;0HTouch x = %04i, %04i\n", touch_position.rawx,
-           touch_position.px);
-    printf("Touch y = %04i, %04i\n", touch_position.rawy, touch_position.py);
-
+    touchPosition touch_position;
     if (held & KEY_TOUCH) {
+      touchRead(&touch_position);
       Vec3 &position = ecs.getComponent<Position>(player).pos;
       position.x = fix::from_int(touch_position.px);
       position.y = fix::from_int(touch_position.py);
     }
+
+    runSystems(ecs, admin_system_interest);
+    ecs.destroyQueued();
   }
 }
