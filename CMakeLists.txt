@@ -11,12 +11,15 @@ grit_add_binary_target(PlayerSprite sprites/player.png DEPTH 8 NO_MAP OPTIONS -M
 
 dkp_add_embedded_binary_library(Sprites AlienSprite PlayerSprite)
 
-add_executable(MagicBattle source/main.cpp source/ndspp.cpp source/unusual.cpp source/tecs.cpp source/tecs-system.cpp)
+add_executable(MagicBattle source/main.cpp source/ndspp.cpp)
 
 target_compile_options(MagicBattle PRIVATE -Wpedantic -Wall -Wextra -Wimplicit-fallthrough -Wno-volatile)
 target_include_directories(MagicBattle PUBLIC include)
+
 target_link_libraries(MagicBattle PUBLIC Sprites)
-# dkp_target_generate_symbol_list(MagicBattle)
+
+add_subdirectory(external/tecs)
+target_link_libraries(MagicBattle PUBLIC tecs)
 
 nds_create_rom(MagicBattle)
 
