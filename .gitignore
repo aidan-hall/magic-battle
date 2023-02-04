@@ -3,3 +3,4 @@ magic-battle.elf
 magic-battle.nds
 build/
 .cache/
+/cmake-build/
