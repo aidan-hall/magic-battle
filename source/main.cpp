@@ -4,11 +4,11 @@
 #include "tecs-system.hpp"
 #include "tecs.hpp"
 #include "unusual_id_manager.hpp"
-#include <algorithm>
 #include <AlienSprite_gfx.h>
 #include <AlienSprite_pal.h>
 #include <PlayerSprite_gfx.h>
 #include <PlayerSprite_pal.h>
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstdint>
@@ -212,7 +212,8 @@ int main(void) {
   // Load palettes
   vramSetBankF(VRAM_F_LCD);
   dmaCopy(AlienSprite_pal, &VRAM_F_EXT_SPR_PALETTE[0][0], AlienSprite_pal_size);
-  dmaCopy(PlayerSprite_pal, &VRAM_F_EXT_SPR_PALETTE[1][0], PlayerSprite_pal_size);
+  dmaCopy(PlayerSprite_pal, &VRAM_F_EXT_SPR_PALETTE[1][0],
+          PlayerSprite_pal_size);
   vramSetBankF(VRAM_F_SPRITE_EXT_PALETTE);
 
   const u8 *AlienSprite_gfxU8 = reinterpret_cast<const u8 *>(AlienSprite_gfx);
@@ -231,11 +232,11 @@ int main(void) {
       ecs.addComponent<Alien>(alien);
       ecs.addComponent<Transform>(alien);
       ecs.getComponent<Transform>(alien) =
-          Transform{fix::from_int(x), fix::from_int(y), a};
+          Transform{{fix::from_int(x), fix::from_int(y), 0}, a};
       ecs.addComponent<Velocity>(alien);
 
       ecs.getComponent<Velocity>(alien) =
-          Velocity{{fix::from_float(1.5f), fix::from_float(1.5f)}};
+          Velocity{{fix::from_float(1.5f), fix::from_float(1.5f), 0}};
       x += 20;
       y += 30;
       a += DEGREES_IN_CIRCLE / (2 * aliens.size());
@@ -244,7 +245,7 @@ int main(void) {
 
   Entity player = ecs.newEntity();
   ecs.addComponents(player, Transform{Vec3{fix::from_int(SCREEN_WIDTH / 2),
-                                           fix::from_int(SCREEN_HEIGHT / 2)},
+                                           fix::from_int(SCREEN_HEIGHT / 2), 0},
                                       0});
   constexpr int player_width = 32;
   constexpr int player_height = 32;
