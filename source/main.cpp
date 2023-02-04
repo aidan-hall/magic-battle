@@ -3,6 +3,9 @@
 #include "ndspp.hpp"
 #include "tecs-system.hpp"
 #include "tecs.hpp"
+#include "components.hpp"
+#include "systems.hpp"
+#include "util.hpp"
 #include "unusual_id_manager.hpp"
 #include <ZombieSprite_gfx.h>
 #include <ZombieSprite_pal.h>
@@ -23,21 +26,6 @@ unusual::id_manager<int, MATRIX_COUNT> affine_index_manager;
 
 using namespace nds;
 
-struct Vec3 {
-  fix x;
-  fix y;
-  fix z;
-};
-
-struct Position {
-  Vec3 pos;
-  int32_t rotation;
-};
-
-struct Velocity {
-  Vec3 v;
-};
-
 // struct RotateScale {
 //   // Affine index [0-31].
 //   int32_t affine;
@@ -47,97 +35,8 @@ struct Velocity {
 //   int32_t y_scale = 1 << 8;
 // };
 
-struct SpriteInfo {
-  int id;
-  // Width divided by 2
-  fix width2;
-  // Height divided by 2
-  fix height2;
-};
-
-struct Zombie {};
-
-constexpr SpriteSize sprite_size(int width, int height) {
-  switch (width) {
-  case 8:
-    switch (height) {
-    case 8:
-      return SpriteSize_8x8;
-    case 16:
-      return SpriteSize_8x16;
-    case 32:
-      return SpriteSize_8x32;
-    }
-  case 16:
-    switch (height) {
-    case 8:
-      return SpriteSize_16x8;
-    case 16:
-      return SpriteSize_16x16;
-    case 32:
-      return SpriteSize_16x32;
-    }
-  case 32:
-    switch (height) {
-    case 8:
-      return SpriteSize_32x8;
-    case 16:
-      return SpriteSize_32x16;
-    case 32:
-      return SpriteSize_32x32;
-    case 64:
-      return SpriteSize_32x64;
-    }
-  case 64:
-    switch (height) {
-    case 32:
-      return SpriteSize_64x32;
-    case 64:
-      return SpriteSize_64x64;
-    }
-  default:
-    // Invalid width-height combination.
-    assert(false);
-  }
-}
 
 using namespace Tecs;
-
-void make_sprite(Coordinator &ecs, Entity entity, void *graphics_offset,
-                 SpriteSize size, SpriteColorFormat color_format,
-                 int palette_index, int width, int height) {
-  ecs.addComponent<SpriteInfo>(entity);
-  const SpriteInfo &sprite_info = ecs.getComponent<SpriteInfo>(entity) =
-      SpriteInfo{sprite_id_manager.allocate(),
-                 // Width and height are doubled to allow room for rotation
-                 fix::from_int(width)/2, fix::from_int(height)/2};
-  oamSet(&oamMain, sprite_info.id, 5, 5, 0, palette_index, size, color_format,
-         graphics_offset, -1, false, false, false, false, false);
-}
-
-void draw_sprites(Coordinator &ecs,
-                  const std::unordered_set<Entity> &entities) {
-  for (const Entity entity : entities) {
-    const auto id = ecs.getComponent<SpriteInfo>(entity);
-    const auto transform = ecs.getComponent<Position>(entity);
-    oamSetXY(&oamMain, id.id, static_cast<int32_t>(transform.pos.x - id.width2),
-             static_cast<int32_t>(transform.pos.y - id.height2));
-  }
-}
-
-void apply_velocity(Coordinator &ecs,
-                    const std::unordered_set<Entity> &entities) {
-  for (const Entity entity : entities) {
-    auto &position = ecs.getComponent<Position>(entity).pos;
-    const Vec3 &velocity = ecs.getComponent<Velocity>(entity).v;
-    position.x = position.x + velocity.x;
-    position.y = position.y + velocity.y;
-  }
-}
-
-struct RenderingSystemTag {};
-
-struct PhysicsSystemTag {};
 
 int main(void) {
   consoleDemoInit();
@@ -202,6 +101,7 @@ int main(void) {
   constexpr SpriteSize zombie_size = sprite_size(zombie_width, zombie_height);
   zombie_gfx = oamAllocateGfx(&oamMain, zombie_size, SpriteColorFormat_256Color);
   dmaCopy(ZombieSprite_gfx, zombie_gfx, SPRITE_SIZE_PIXELS(zombie_size));
+  // some change
 
   // Load palettes
   vramSetBankF(VRAM_F_LCD);
@@ -221,7 +121,7 @@ int main(void) {
     int y = 10;
     int a = degreesToAngle(0);
     for (const auto zombie : zombies) {
-      make_sprite(ecs, zombie, zombie_gfx, zombie_size, SpriteColorFormat_256Color,
+      make_sprite(ecs, zombie, sprite_id_manager, zombie_gfx, zombie_size, SpriteColorFormat_256Color,
                   0, zombie_width, zombie_height);
       ecs.addComponent<Zombie>(zombie);
       ecs.addComponent<Position>(zombie);
@@ -250,7 +150,7 @@ int main(void) {
 
   // dmaCopy(playerPal, &VRAM_F_EXT_SPR_PALETTE[0][0], playerPalLen);
 
-  make_sprite(ecs, player, player_gfx, player_size, SpriteColorFormat_256Color,
+  make_sprite(ecs, player, sprite_id_manager, player_gfx, player_size, SpriteColorFormat_256Color,
               1, player_width, player_height);
 
   // auto &position = ecs.getComponent<Position>(zombies[1]);

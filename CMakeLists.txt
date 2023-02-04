@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Executable
-add_executable(MagicBattle source/main.cpp source/ndspp.cpp)
+add_executable(MagicBattle source/main.cpp source/ndspp.cpp source/systems.cpp source/util.cpp)
 
 target_include_directories(MagicBattle PUBLIC include)
 
