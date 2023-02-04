@@ -4,8 +4,8 @@
 #include "tecs-system.hpp"
 #include "tecs.hpp"
 #include "unusual_id_manager.hpp"
-#include <AlienSprite_gfx.h>
-#include <AlienSprite_pal.h>
+#include <ZombieSprite_gfx.h>
+#include <ZombieSprite_pal.h>
 #include <PlayerSprite_gfx.h>
 #include <PlayerSprite_pal.h>
 #include <algorithm>
@@ -29,7 +29,7 @@ struct Vec3 {
   fix z;
 };
 
-struct Transform {
+struct Position {
   Vec3 pos;
   int32_t rotation;
 };
@@ -38,16 +38,24 @@ struct Velocity {
   Vec3 v;
 };
 
+// struct RotateScale {
+//   // Affine index [0-31].
+//   int32_t affine;
+//   int32_t rotation;
+//   // Default scale is unscaled.
+//   int32_t x_scale = 1 << 8;
+//   int32_t y_scale = 1 << 8;
+// };
+
 struct SpriteInfo {
   int id;
-  int affine;
   // Width divided by 2
   fix width2;
   // Height divided by 2
   fix height2;
 };
 
-struct Alien {};
+struct Zombie {};
 
 constexpr SpriteSize sprite_size(int width, int height) {
   switch (width) {
@@ -100,29 +108,27 @@ void make_sprite(Coordinator &ecs, Entity entity, void *graphics_offset,
                  int palette_index, int width, int height) {
   ecs.addComponent<SpriteInfo>(entity);
   const SpriteInfo &sprite_info = ecs.getComponent<SpriteInfo>(entity) =
-      SpriteInfo{sprite_id_manager.allocate(), affine_index_manager.allocate(),
+      SpriteInfo{sprite_id_manager.allocate(),
                  // Width and height are doubled to allow room for rotation
-                 fix::from_int(width), fix::from_int(height)};
-  // oamSetGfx(&oamMain, sprite_id.value, size, color_format, graphics_offset);
+                 fix::from_int(width)/2, fix::from_int(height)/2};
   oamSet(&oamMain, sprite_info.id, 5, 5, 0, palette_index, size, color_format,
-         graphics_offset, sprite_info.affine, true, false, false, false, false);
+         graphics_offset, -1, false, false, false, false, false);
 }
 
 void draw_sprites(Coordinator &ecs,
                   const std::unordered_set<Entity> &entities) {
   for (const Entity entity : entities) {
     const auto id = ecs.getComponent<SpriteInfo>(entity);
-    const auto transform = ecs.getComponent<Transform>(entity);
+    const auto transform = ecs.getComponent<Position>(entity);
     oamSetXY(&oamMain, id.id, static_cast<int32_t>(transform.pos.x - id.width2),
              static_cast<int32_t>(transform.pos.y - id.height2));
-    oamRotateScale(&oamMain, id.affine, transform.rotation, 1 << 8, 1 << 8);
   }
 }
 
 void apply_velocity(Coordinator &ecs,
                     const std::unordered_set<Entity> &entities) {
   for (const Entity entity : entities) {
-    auto &position = ecs.getComponent<Transform>(entity).pos;
+    auto &position = ecs.getComponent<Position>(entity).pos;
     const Vec3 &velocity = ecs.getComponent<Velocity>(entity).v;
     position.x = position.x + velocity.x;
     position.y = position.y + velocity.y;
@@ -142,10 +148,10 @@ int main(void) {
 
   registerSystemComponents(ecs);
 
-  ecs.registerComponent<Transform>();
+  ecs.registerComponent<Position>();
   ecs.registerComponent<Velocity>();
   ecs.registerComponent<SpriteInfo>();
-  ecs.registerComponent<Alien>();
+  ecs.registerComponent<Zombie>();
   ecs.registerComponent<PhysicsSystemTag>();
   ecs.registerComponent<RenderingSystemTag>();
 
@@ -157,24 +163,12 @@ int main(void) {
   ecs.addComponents(ecs.newEntity(), SingleEntitySetSystem{draw_sprites},
                     RenderingSystemTag{},
                     InterestedClient{ecs.interests.registerInterests(
-                        {{ecs.componentMask<SpriteInfo, Transform>()}})});
+                        {{ecs.componentMask<SpriteInfo, Position>()}})});
 
   ecs.addComponents(ecs.newEntity(), SingleEntitySetSystem{apply_velocity},
                     PhysicsSystemTag{},
                     InterestedClient{ecs.interests.registerInterests(
-                        {{ecs.componentMask<Transform, Velocity>()}})});
-
-  ecs.addComponents(
-      ecs.newEntity(),
-      SingleEntitySetSystem{
-          [](Coordinator &ecs, const std::unordered_set<Entity> &entities) {
-            for (const auto entity : entities) {
-              ecs.getComponent<Transform>(entity).rotation += degreesToAngle(5);
-            }
-          }},
-      PhysicsSystemTag{},
-      InterestedClient{ecs.interests.registerInterests(
-          {{ecs.componentMask<Transform, Alien>()}})});
+                        {{ecs.componentMask<Position, Velocity>()}})});
 
   ecs.addComponents(
       ecs.newEntity(),
@@ -184,7 +178,7 @@ int main(void) {
             if (keysHeld() & KEY_TOUCH) {
               for (const auto entity : entities) {
                 Vec3 *velocity = &ecs.getComponent<Velocity>(entity).v;
-                const Vec3 &position = ecs.getComponent<Transform>(entity).pos;
+                const Vec3 &position = ecs.getComponent<Position>(entity).pos;
                 velocity->x = fix::from_int(touch_position.px) - position.x;
                 velocity->y = fix::from_int(touch_position.py) - position.y;
 
@@ -194,7 +188,7 @@ int main(void) {
           }},
       PhysicsSystemTag{},
       InterestedClient{
-          ecs.interests.registerInterests({{ecs.componentMask<Alien>()}})});
+          ecs.interests.registerInterests({{ecs.componentMask<Zombie>()}})});
 
   lcdMainOnBottom();
   videoSetMode(MODE_0_2D);
@@ -202,49 +196,49 @@ int main(void) {
   vramSetBankA(VRAM_A_MAIN_SPRITE);
   oamInit(&oamMain, SpriteMapping_1D_32, true);
 
-  u16 *alien_gfx;
-  constexpr int alien_width = 32;
-  constexpr int alien_height = 32;
-  constexpr SpriteSize alien_size = sprite_size(alien_width, alien_height);
-  alien_gfx = oamAllocateGfx(&oamMain, alien_size, SpriteColorFormat_256Color);
-  dmaCopy(AlienSprite_gfx, alien_gfx, SPRITE_SIZE_PIXELS(alien_size));
+  u16 *zombie_gfx;
+  constexpr int zombie_width = 16;
+  constexpr int zombie_height = 16;
+  constexpr SpriteSize zombie_size = sprite_size(zombie_width, zombie_height);
+  zombie_gfx = oamAllocateGfx(&oamMain, zombie_size, SpriteColorFormat_256Color);
+  dmaCopy(ZombieSprite_gfx, zombie_gfx, SPRITE_SIZE_PIXELS(zombie_size));
 
   // Load palettes
   vramSetBankF(VRAM_F_LCD);
-  dmaCopy(AlienSprite_pal, &VRAM_F_EXT_SPR_PALETTE[0][0], AlienSprite_pal_size);
+  dmaCopy(ZombieSprite_pal, &VRAM_F_EXT_SPR_PALETTE[0][0], ZombieSprite_pal_size);
   dmaCopy(PlayerSprite_pal, &VRAM_F_EXT_SPR_PALETTE[1][0],
           PlayerSprite_pal_size);
   vramSetBankF(VRAM_F_SPRITE_EXT_PALETTE);
 
-  const u8 *AlienSprite_gfxU8 = reinterpret_cast<const u8 *>(AlienSprite_gfx);
-  const u8 *wiggly = AlienSprite_gfxU8 + 32 * 32;
+  const u8 *ZombieSprite_gfxU8 = reinterpret_cast<const u8 *>(ZombieSprite_gfx);
+  const u8 *wiggly = ZombieSprite_gfxU8 + SPRITE_SIZE_PIXELS(zombie_size);
 
-  std::array<Tecs::Entity, 10> aliens;
-  std::for_each(aliens.begin(), aliens.end(),
+  std::array<Tecs::Entity, 10> zombies;
+  std::for_each(zombies.begin(), zombies.end(),
                 [&ecs](auto &e) { e = ecs.newEntity(); });
   {
     int x = 5;
     int y = 10;
     int a = degreesToAngle(0);
-    for (const auto alien : aliens) {
-      make_sprite(ecs, alien, alien_gfx, alien_size, SpriteColorFormat_256Color,
-                  0, alien_width, alien_height);
-      ecs.addComponent<Alien>(alien);
-      ecs.addComponent<Transform>(alien);
-      ecs.getComponent<Transform>(alien) =
-          Transform{{fix::from_int(x), fix::from_int(y), 0}, a};
-      ecs.addComponent<Velocity>(alien);
+    for (const auto zombie : zombies) {
+      make_sprite(ecs, zombie, zombie_gfx, zombie_size, SpriteColorFormat_256Color,
+                  0, zombie_width, zombie_height);
+      ecs.addComponent<Zombie>(zombie);
+      ecs.addComponent<Position>(zombie);
+      ecs.getComponent<Position>(zombie) =
+          Position{{fix::from_int(x), fix::from_int(y), 0}, a};
+      ecs.addComponent<Velocity>(zombie);
 
-      ecs.getComponent<Velocity>(alien) =
+      ecs.getComponent<Velocity>(zombie) =
           Velocity{{fix::from_float(1.5f), fix::from_float(1.5f), 0}};
       x += 20;
       y += 30;
-      a += DEGREES_IN_CIRCLE / (2 * aliens.size());
+      a += DEGREES_IN_CIRCLE / (2 * zombies.size());
     }
   }
 
   Entity player = ecs.newEntity();
-  ecs.addComponents(player, Transform{Vec3{fix::from_int(SCREEN_WIDTH / 2),
+  ecs.addComponents(player, Position{Vec3{fix::from_int(SCREEN_WIDTH / 2),
                                            fix::from_int(SCREEN_HEIGHT / 2), 0},
                                       0});
   constexpr int player_width = 32;
@@ -259,7 +253,7 @@ int main(void) {
   make_sprite(ecs, player, player_gfx, player_size, SpriteColorFormat_256Color,
               1, player_width, player_height);
 
-  // auto &position = ecs.getComponent<Position>(aliens[1]);
+  // auto &position = ecs.getComponent<Position>(zombies[1]);
   // position.x = nds::fix(40);
   // position.y = nds::fix(40);
 
@@ -274,9 +268,9 @@ int main(void) {
     int held = keysCurrent();
 
     if (held & KEY_A) {
-      dmaCopy(wiggly, alien_gfx, 32 * 32);
+      dmaCopy(wiggly, zombie_gfx, SPRITE_SIZE_PIXELS(zombie_size));
     } else {
-      dmaCopy(AlienSprite_gfx, alien_gfx, 32 * 32);
+      dmaCopy(ZombieSprite_gfx, zombie_gfx, SPRITE_SIZE_PIXELS(SpriteSize_16x16));
     }
 
     if (held & KEY_START)
@@ -288,7 +282,7 @@ int main(void) {
     printf("Touch y = %04i, %04i\n", touch_position.rawy, touch_position.py);
 
     if (held & KEY_TOUCH) {
-      Vec3 &position = ecs.getComponent<Transform>(player).pos;
+      Vec3 &position = ecs.getComponent<Position>(player).pos;
       position.x = fix::from_int(touch_position.px);
       position.y = fix::from_int(touch_position.py);
     }
