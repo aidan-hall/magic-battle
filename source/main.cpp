@@ -1,16 +1,16 @@
+#include "components.hpp"
 #include "nds/arm9/sprite.h"
 #include "nds/arm9/video.h"
 #include "ndspp.hpp"
+#include "systems.hpp"
 #include "tecs-system.hpp"
 #include "tecs.hpp"
-#include "components.hpp"
-#include "systems.hpp"
-#include "util.hpp"
 #include "unusual_id_manager.hpp"
-#include <ZombieSprite_gfx.h>
-#include <ZombieSprite_pal.h>
+#include "util.hpp"
 #include <PlayerSprite_gfx.h>
 #include <PlayerSprite_pal.h>
+#include <ZombieSprite_gfx.h>
+#include <ZombieSprite_pal.h>
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -25,16 +25,6 @@ unusual::id_manager<int, SPRITE_COUNT> sprite_id_manager;
 unusual::id_manager<int, MATRIX_COUNT> affine_index_manager;
 
 using namespace nds;
-
-// struct RotateScale {
-//   // Affine index [0-31].
-//   int32_t affine;
-//   int32_t rotation;
-//   // Default scale is unscaled.
-//   int32_t x_scale = 1 << 8;
-//   int32_t y_scale = 1 << 8;
-// };
-
 
 using namespace Tecs;
 
@@ -99,13 +89,15 @@ int main(void) {
   constexpr int zombie_width = 16;
   constexpr int zombie_height = 16;
   constexpr SpriteSize zombie_size = sprite_size(zombie_width, zombie_height);
-  zombie_gfx = oamAllocateGfx(&oamMain, zombie_size, SpriteColorFormat_256Color);
+  zombie_gfx =
+      oamAllocateGfx(&oamMain, zombie_size, SpriteColorFormat_256Color);
   dmaCopy(ZombieSprite_gfx, zombie_gfx, SPRITE_SIZE_PIXELS(zombie_size));
   // some change
 
   // Load palettes
   vramSetBankF(VRAM_F_LCD);
-  dmaCopy(ZombieSprite_pal, &VRAM_F_EXT_SPR_PALETTE[0][0], ZombieSprite_pal_size);
+  dmaCopy(ZombieSprite_pal, &VRAM_F_EXT_SPR_PALETTE[0][0],
+          ZombieSprite_pal_size);
   dmaCopy(PlayerSprite_pal, &VRAM_F_EXT_SPR_PALETTE[1][0],
           PlayerSprite_pal_size);
   vramSetBankF(VRAM_F_SPRITE_EXT_PALETTE);
@@ -121,8 +113,8 @@ int main(void) {
     int y = 10;
     int a = degreesToAngle(0);
     for (const auto zombie : zombies) {
-      make_sprite(ecs, zombie, sprite_id_manager, zombie_gfx, zombie_size, SpriteColorFormat_256Color,
-                  0, zombie_width, zombie_height);
+      make_sprite(ecs, zombie, sprite_id_manager, zombie_gfx, zombie_size,
+                  SpriteColorFormat_256Color, 0, zombie_width, zombie_height);
       ecs.addComponent<Zombie>(zombie);
       ecs.addComponent<Position>(zombie);
       ecs.getComponent<Position>(zombie) =
@@ -139,8 +131,8 @@ int main(void) {
 
   Entity player = ecs.newEntity();
   ecs.addComponents(player, Position{Vec3{fix::from_int(SCREEN_WIDTH / 2),
-                                           fix::from_int(SCREEN_HEIGHT / 2), 0},
-                                      0});
+                                          fix::from_int(SCREEN_HEIGHT / 2), 0},
+                                     0});
   constexpr int player_width = 16;
   constexpr int player_height = 16;
   constexpr SpriteSize player_size = sprite_size(player_width, player_height);
@@ -150,12 +142,8 @@ int main(void) {
 
   // dmaCopy(playerPal, &VRAM_F_EXT_SPR_PALETTE[0][0], playerPalLen);
 
-  make_sprite(ecs, player, sprite_id_manager, player_gfx, player_size, SpriteColorFormat_256Color,
-              1, player_width, player_height);
-
-  // auto &position = ecs.getComponent<Position>(zombies[1]);
-  // position.x = nds::fix(40);
-  // position.y = nds::fix(40);
+  make_sprite(ecs, player, sprite_id_manager, player_gfx, player_size,
+              SpriteColorFormat_256Color, 1, player_width, player_height);
 
   while (1) {
     touchRead(&touch_position);
@@ -170,7 +158,8 @@ int main(void) {
     if (held & KEY_A) {
       dmaCopy(wiggly, zombie_gfx, SPRITE_SIZE_PIXELS(zombie_size));
     } else {
-      dmaCopy(ZombieSprite_gfx, zombie_gfx, SPRITE_SIZE_PIXELS(SpriteSize_16x16));
+      dmaCopy(ZombieSprite_gfx, zombie_gfx,
+              SPRITE_SIZE_PIXELS(SpriteSize_16x16));
     }
 
     if (held & KEY_START)
