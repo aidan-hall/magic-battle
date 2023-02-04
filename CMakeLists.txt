@@ -28,7 +28,7 @@ target_compile_options(MagicBattle PRIVATE
 # Libraries
 
 # Images
-grit_add_binary_target(PlayerSprite sprites/player.png DEPTH 8 NO_MAP OPTIONS -Mh 4 -Mw 4)
+grit_add_binary_target(PlayerSprite sprites/player.png DEPTH 8 NO_MAP OPTIONS -Mh 2 -Mw 2)
 grit_add_binary_target(ZombieSprite sprites/zombie.png DEPTH 8 NO_MAP OPTIONS -Mh 2 -Mw 2)
 
 dkp_add_embedded_binary_library(Sprites PlayerSprite ZombieSprite)

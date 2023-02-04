@@ -241,8 +241,8 @@ int main(void) {
   ecs.addComponents(player, Position{Vec3{fix::from_int(SCREEN_WIDTH / 2),
                                            fix::from_int(SCREEN_HEIGHT / 2), 0},
                                       0});
-  constexpr int player_width = 32;
-  constexpr int player_height = 32;
+  constexpr int player_width = 16;
+  constexpr int player_height = 16;
   constexpr SpriteSize player_size = sprite_size(player_width, player_height);
   u16 *player_gfx =
       oamAllocateGfx(&oamMain, player_size, SpriteColorFormat_256Color);
