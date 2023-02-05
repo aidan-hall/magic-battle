@@ -76,7 +76,6 @@ void circular_collision_detection(Coordinator &ecs,
         const Vec3 &b_position = ecs.getComponent<Position>(b).pos;
         if (circle_circle(a_position, a_collision.radius_squared, b_position,
                           b_collision.radius_squared)) {
-          printf("Collision between %d and %d\n", a, b);
           a_collision.callback(ecs, a, b);
         }
       }
