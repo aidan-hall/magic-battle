@@ -20,7 +20,7 @@ void make_sprite(Coordinator &ecs, Entity entity,
                  nds::fix::from_int(sprite_data.height) / 2},
       DeathCallback{
           [&sprite_id_manager](Tecs::Coordinator &ecs, Tecs::Entity self) {
-            printf("Releasing sprite id of %d\n", self);
+            // printf("Releasing sprite id of %d\n", self);
             const auto id = ecs.getComponent<SpriteInfo>(self).id;
             // Hide the sprite
             oamClearSprite(&oamMain, id);
@@ -29,7 +29,7 @@ void make_sprite(Coordinator &ecs, Entity entity,
   oamSet(&oamMain, sprite_info.id, 5, 5, 0, sprite_data.palette_index,
          sprite_data.size, sprite_data.color_format, sprite_data.vram_memory,
          -1, false, false, false, false, false);
-  printf("Sprite %d assigned to entity %d\n", sprite_info.id, entity);
+  // printf("Sprite %d assigned to entity %d\n", sprite_info.id, entity);
 }
 
 nds::fix radius_squared_from_diameter(nds::fix diameter) {
