@@ -36,6 +36,11 @@ enum class Spell {
   Fireball,
   Teleport,
 };
+constexpr nds::fix MAX_MAGIC = nds::fix::from_float(100.0f);
+constexpr nds::fix MAGIC_BUILD_RATE = nds::fix::from_float(0.3f);
+constexpr nds::fix FIREBALL_MAGIC = nds::fix::from_float(25.0f);
+constexpr nds::fix TELEPORT_MAGIC = nds::fix::from_float(50.0f);
+nds::fix magic_meter = MAX_MAGIC;
 
 using namespace nds;
 
@@ -152,7 +157,7 @@ int main(void) {
                               self_destruct});
 
   // Zombie setup
-  std::array<Tecs::Entity, 5> zombies;
+  std::array<Tecs::Entity, 20> zombies;
   std::for_each(zombies.begin(), zombies.end(),
                 [&ecs](auto &e) { e = ecs.newEntity(); });
   {
@@ -170,7 +175,7 @@ int main(void) {
           Velocity{{fix::from_float(1.5f), fix::from_float(1.5f), 0}},
           Collision{PLAYER_ATTACK_LAYER, ZOMBIE_LAYER, zombie_radius_squared,
                     self_destruct},
-          Following{player, nds::fix::from_float(0.5f)});
+          Following{player, nds::fix::from_float(0.25f)});
 
       x -= 20;
       y += 30;
@@ -191,10 +196,7 @@ int main(void) {
       zombie_sprite.set_active_tile(0);
     }
 
-    if (held & KEY_B) {
-      // also clears screen
-      consoleClear();
-    }
+    consoleClear();
 
     if (held & KEY_START)
       break;
@@ -208,16 +210,27 @@ int main(void) {
       Vec3 target_position;
       target_position.x = fix::from_int(touch_position.px);
       target_position.y = fix::from_int(touch_position.py);
-      if (held & (KEY_L | KEY_R)) {
+      if (held & (KEY_L | KEY_R) and magic_meter > TELEPORT_MAGIC) {
         // teleport
         position = target_position;
-      } else {
+        magic_meter -= TELEPORT_MAGIC;
+      } else if (magic_meter > FIREBALL_MAGIC) {
 
         make_fireball(ecs, position, target_position, sprite_id_manager,
                       fireball_sprite);
-        printf("shoot!\n");
+        magic_meter -= FIREBALL_MAGIC;
       }
     }
+
+    if (magic_meter < MAX_MAGIC) {
+      magic_meter += MAGIC_BUILD_RATE;
+    } else {
+      magic_meter = MAX_MAGIC;
+    }
+
+    printf("Magic: %f\n\nFireball: %f\nTeleport: %f\n",
+           static_cast<float>(magic_meter), static_cast<float>(FIREBALL_MAGIC),
+           static_cast<float>(TELEPORT_MAGIC));
 
     runSystems(ecs, admin_system_interest);
     ecs.destroyQueued();
