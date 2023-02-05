@@ -117,8 +117,6 @@ int main(void) {
                         {{DEATHMARK_COMPONENT | DEATHCALLBACK_COMPONENT}})});
 
   consoleDemoInit();
-  printf("Hello world.\n");
-  printf("Hello world.\n");
 
   lcdMainOnBottom();
   videoSetMode(MODE_0_2D);
@@ -142,11 +140,16 @@ int main(void) {
                              VRAM_F_EXT_SPR_PALETTE);
   vramSetBankF(VRAM_F_SPRITE_EXT_PALETTE);
 
+  // Player target setup
+  const Vec3 player_start_pos = Vec3{fix::from_int(SCREEN_WIDTH / 2),
+                                     fix::from_int(SCREEN_HEIGHT / 2), 0};
+  Entity player_target = ecs.newEntity();
+  ecs.addComponents(player_target, Position{player_start_pos});
+
   // Player setup
   Entity player = ecs.newEntity();
-  ecs.addComponents(player,
-                    Position{Vec3{fix::from_int(SCREEN_WIDTH / 2),
-                                  fix::from_int(SCREEN_HEIGHT / 2), 0}});
+  ecs.addComponents(player, Position{player_start_pos}, Velocity{},
+                    Following{player_target, nds::fix::from_float(5.0f)});
 
   make_sprite(ecs, player, sprite_id_manager, player_sprite);
 
@@ -206,7 +209,7 @@ int main(void) {
     touchPosition touch_position;
     if (down & KEY_TOUCH) {
       touchRead(&touch_position);
-      Vec3 &position = ecs.getComponent<Position>(player).pos;
+      Vec3 &position = ecs.getComponent<Position>(player_target).pos;
       Vec3 target_position;
       target_position.x = fix::from_int(touch_position.px);
       target_position.y = fix::from_int(touch_position.py);
