@@ -36,6 +36,8 @@ void draw_sprites(Coordinator &ecs,
   }
 }
 
+constexpr nds::fix FOLLOW_CUTOFF = nds::fix::from_float(1.0f);
+
 void following_ai(Coordinator &ecs,
                   const std::unordered_set<Entity> &entities) {
   for (const auto entity : entities) {
@@ -45,7 +47,14 @@ void following_ai(Coordinator &ecs,
     const Vec3 &target_position = ecs.getComponent<Position>(follow.target).pos;
 
     velocity->x = target_position.x - position.x;
+    // Don't move if the target is too close.
+    if (nds::fix::abs(velocity->x) <= FOLLOW_CUTOFF) {
+      velocity->x = {0};
+    }
     velocity->y = target_position.y - position.y;
+    if (nds::fix::abs(velocity->y) <= FOLLOW_CUTOFF) {
+      velocity->y = {0};
+    }
 
     normalizef32(reinterpret_cast<int32 *>(velocity));
     velocity->x = velocity->x * follow.speed;
