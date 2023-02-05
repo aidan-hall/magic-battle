@@ -26,8 +26,8 @@
 #include <nds/touch.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <unordered_set>
 #include <unordered_map>
+#include <unordered_set>
 
 unusual::id_manager<int, SPRITE_COUNT> sprite_id_manager;
 unusual::id_manager<int, MATRIX_COUNT> affine_index_manager;
@@ -38,9 +38,9 @@ enum class Spell {
   Teleport,
 };
 
-std::unordered_map<Spell, const char*> spell_strings = {
-  {Spell::Fireball, "fireball"},
-  {Spell::Teleport, "teleport"},
+std::unordered_map<Spell, const char *> spell_strings = {
+    {Spell::Fireball, "fireball"},
+    {Spell::Teleport, "teleport"},
 };
 
 Spell selected_spell = Spell::Fireball;
@@ -176,19 +176,10 @@ int main(void) {
     int x = SCREEN_WIDTH - 5;
     int y = 10;
 
-    const nds::fix zombie_radius_squared =
-        radius_squared_from_diameter(nds::fix::from_int(zombie_sprite.width));
-    for (const auto zombie : zombies) {
-      make_sprite(ecs, zombie, sprite_id_manager, zombie_sprite);
-      ecs.addComponent<Zombie>(zombie);
-
-      ecs.addComponents(
-          zombie, Position{{fix::from_int(x), fix::from_int(y), 0}},
-          Velocity{{fix::from_float(1.5f), fix::from_float(1.5f), 0}},
-          Collision{PLAYER_ATTACK_LAYER, ZOMBIE_LAYER, zombie_radius_squared,
-                    self_destruct},
-          Following{player, nds::fix::from_float(0.25f)});
-
+    for (int i = 0; i < 20; ++i) {
+      make_zombie(ecs, Vec3{nds::fix::from_int(x), nds::fix::from_int(y), {}},
+                  player, nds::fix::from_float(0.25f), sprite_id_manager,
+                  zombie_sprite);
       x -= 20;
       y += 30;
     }
@@ -249,7 +240,8 @@ int main(void) {
 
     printf("Magic: %f\n\nFireball: %f\nTeleport: %f\n\nSelected spell: %s\n",
            static_cast<float>(magic_meter), static_cast<float>(FIREBALL_MAGIC),
-           static_cast<float>(TELEPORT_MAGIC), spell_strings.at(selected_spell));
+           static_cast<float>(TELEPORT_MAGIC),
+           spell_strings.at(selected_spell));
 
     runSystems(ecs, admin_system_interest);
     ecs.destroyQueued();

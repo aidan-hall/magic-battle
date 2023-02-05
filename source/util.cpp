@@ -38,7 +38,7 @@ nds::fix radius_squared_from_diameter(nds::fix diameter) {
 }
 
 Entity make_fireball(Coordinator &ecs, Vec3 position, Vec3 target,
-                     unusual::id_manager<int, SPRITE_COUNT>& sprite_id_manager,
+                     unusual::id_manager<int, SPRITE_COUNT> &sprite_id_manager,
                      SpriteData &sprite) {
   Entity fireball = ecs.newEntity();
 
@@ -57,6 +57,24 @@ Entity make_fireball(Coordinator &ecs, Vec3 position, Vec3 target,
                 radius_squared_from_diameter(nds::fix::from_int(sprite.width)),
                 self_destruct});
   return fireball;
+}
+
+Tecs::Entity make_zombie(Coordinator &ecs, Vec3 position, Tecs::Entity player,
+                   nds::fix speed,
+                   unusual::id_manager<int, SPRITE_COUNT> &sprite_id_manager,
+                   SpriteData &sprite) {
+  using namespace nds;
+  Tecs::Entity zombie = ecs.newEntity();
+  const nds::fix zombie_radius_squared =
+      radius_squared_from_diameter(nds::fix::from_int(sprite.width));
+  make_sprite(ecs, zombie, sprite_id_manager, sprite);
+  ecs.addComponent<Zombie>(zombie);
+
+  ecs.addComponents(zombie, Position{position}, Velocity{},
+                    Collision{PLAYER_ATTACK_LAYER, ZOMBIE_LAYER,
+                              zombie_radius_squared, self_destruct},
+                    Following{player, speed});
+  return zombie;
 }
 
 bool circle_circle(Vec3 a_position, nds::fix a_radius_squared, Vec3 b_position,

@@ -103,13 +103,22 @@ void make_sprite(Tecs::Coordinator &ecs, Tecs::Entity entity,
                  unusual::id_manager<int, SPRITE_COUNT> &sprite_id_manager,
                  SpriteData &sprite_data);
 
-Tecs::Entity make_fireball(Tecs::Coordinator &ecs, Vec3 position, Vec3 target,
-                     unusual::id_manager<int, SPRITE_COUNT>& sprite_id_manager,
-                     SpriteData &sprite);
+Tecs::Entity
+make_fireball(Tecs::Coordinator &ecs, Vec3 position, Vec3 target,
+              unusual::id_manager<int, SPRITE_COUNT> &sprite_id_manager,
+              SpriteData &sprite);
 
-bool circle_circle(Vec3 a_position, nds::fix a_radius_squared, Vec3 b_position, nds::fix b_radius_squared);
+Tecs::Entity
+make_zombie(Tecs::Coordinator &ecs, Vec3 position, Tecs::Entity player,
+            nds::fix speed,
+            unusual::id_manager<int, SPRITE_COUNT> &sprite_id_manager,
+            SpriteData &sprite);
 
-void self_destruct(Tecs::Coordinator &ecs, Tecs::Entity self, Tecs::Entity other);
+bool circle_circle(Vec3 a_position, nds::fix a_radius_squared, Vec3 b_position,
+                   nds::fix b_radius_squared);
+
+void self_destruct(Tecs::Coordinator &ecs, Tecs::Entity self,
+                   Tecs::Entity other);
 nds::fix radius_squared_from_diameter(nds::fix diameter);
 
 #endif /* UTIL_H */
