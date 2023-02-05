@@ -36,7 +36,7 @@ void draw_sprites(Coordinator &ecs,
   }
 }
 
-constexpr nds::fix FOLLOW_CUTOFF = nds::fix::from_float(1.0f);
+constexpr nds::fix FOLLOW_CUTOFF = nds::fix::from_float(2.0f);
 
 void following_ai(Coordinator &ecs,
                   const std::unordered_set<Entity> &entities) {
