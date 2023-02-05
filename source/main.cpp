@@ -27,6 +27,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <unordered_set>
+#include <unordered_map>
 
 unusual::id_manager<int, SPRITE_COUNT> sprite_id_manager;
 unusual::id_manager<int, MATRIX_COUNT> affine_index_manager;
@@ -36,6 +37,14 @@ enum class Spell {
   Fireball,
   Teleport,
 };
+
+std::unordered_map<Spell, const char*> spell_strings = {
+  {Spell::Fireball, "fireball"},
+  {Spell::Teleport, "teleport"},
+};
+
+Spell selected_spell = Spell::Fireball;
+
 constexpr nds::fix MAX_MAGIC = nds::fix::from_float(100.0f);
 constexpr nds::fix MAGIC_BUILD_RATE = nds::fix::from_float(0.3f);
 constexpr nds::fix FIREBALL_MAGIC = nds::fix::from_float(25.0f);
@@ -205,6 +214,12 @@ int main(void) {
       break;
     runSystems(ecs, physics_system_interest);
 
+    if (held & (KEY_L | KEY_R)) {
+      selected_spell = Spell::Teleport;
+    } else {
+      selected_spell = Spell::Fireball;
+    }
+
     int down = keysDown();
     touchPosition touch_position;
     if (down & KEY_TOUCH) {
@@ -213,11 +228,12 @@ int main(void) {
       Vec3 target_position;
       target_position.x = fix::from_int(touch_position.px);
       target_position.y = fix::from_int(touch_position.py);
-      if (held & (KEY_L | KEY_R) and magic_meter > TELEPORT_MAGIC) {
+      if (selected_spell == Spell::Teleport and magic_meter > TELEPORT_MAGIC) {
         // teleport
         position = target_position;
         magic_meter -= TELEPORT_MAGIC;
-      } else if (magic_meter > FIREBALL_MAGIC) {
+      } else if (selected_spell == Spell::Fireball and
+                 magic_meter > FIREBALL_MAGIC) {
 
         make_fireball(ecs, position, target_position, sprite_id_manager,
                       fireball_sprite);
@@ -231,9 +247,9 @@ int main(void) {
       magic_meter = MAX_MAGIC;
     }
 
-    printf("Magic: %f\n\nFireball: %f\nTeleport: %f\n",
+    printf("Magic: %f\n\nFireball: %f\nTeleport: %f\n\nSelected spell: %s\n",
            static_cast<float>(magic_meter), static_cast<float>(FIREBALL_MAGIC),
-           static_cast<float>(TELEPORT_MAGIC));
+           static_cast<float>(TELEPORT_MAGIC), spell_strings.at(selected_spell));
 
     runSystems(ecs, admin_system_interest);
     ecs.destroyQueued();
