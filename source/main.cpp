@@ -122,16 +122,15 @@ int main(void) {
                            palette_index_manager, SpriteColorFormat_256Color,
                            ZombieSprite_pal, ZombieSprite_pal_size,
                            VRAM_F_EXT_SPR_PALETTE);
-  SpriteData player_sprite(
-      &oamMain, PlayerSprite_gfx, 16, 16, 1, palette_index_manager,
-      SpriteColorFormat_256Color, PlayerSprite_pal, PlayerSprite_pal_size,
-      VRAM_F_EXT_SPR_PALETTE);
+  SpriteData player_sprite(&oamMain, PlayerSprite_gfx, 16, 16, 1,
+                           palette_index_manager, SpriteColorFormat_256Color,
+                           PlayerSprite_pal, PlayerSprite_pal_size,
+                           VRAM_F_EXT_SPR_PALETTE);
+  SpriteData fireball_sprite(&oamMain, FireballSprite_gfx, 8, 8, 1,
+                             palette_index_manager, SpriteColorFormat_256Color,
+                             FireballSprite_pal, FireballSprite_pal_size,
+                             VRAM_F_EXT_SPR_PALETTE);
   vramSetBankF(VRAM_F_SPRITE_EXT_PALETTE);
-
-  const auto self_destruct = [](Coordinator &ecs, Entity self, Entity other) {
-    std::ignore = other;
-    ecs.addComponent<DeathMark>(self);
-  };
 
   std::array<Tecs::Entity, 5> zombies;
   std::for_each(zombies.begin(), zombies.end(),
@@ -140,6 +139,9 @@ int main(void) {
     int x = 5;
     int y = 10;
     int a = degreesToAngle(0);
+
+    const nds::fix zombie_radius_squared =
+        radius_squared_from_diameter(nds::fix::from_int(zombie_sprite.width));
     for (const auto zombie : zombies) {
       make_sprite(ecs, zombie, sprite_id_manager, zombie_sprite);
       ecs.addComponent<Zombie>(zombie);
@@ -147,7 +149,7 @@ int main(void) {
       ecs.addComponents(
           zombie, Position{{fix::from_int(x), fix::from_int(y), 0}},
           Velocity{{fix::from_float(1.5f), fix::from_float(1.5f), 0}},
-          Collision{0, ZOMBIE_LAYER | PLAYER_ATTACK_LAYER, zombie_sprite.width / 2,
+          Collision{PLAYER_ATTACK_LAYER, ZOMBIE_LAYER, zombie_radius_squared,
                     self_destruct});
 
       x += 20;
@@ -163,9 +165,11 @@ int main(void) {
 
   make_sprite(ecs, player, sprite_id_manager, player_sprite);
 
-  ecs.addComponents(player, Collision{ZOMBIE_LAYER, PLAYER_LAYER,
-                                      nds::fix::from_int(player_sprite.width) / 2,
-                                      self_destruct});
+  ecs.addComponents(player,
+                    Collision{0, 0,
+                              radius_squared_from_diameter(
+                                  nds::fix::from_int(player_sprite.width)),
+                              self_destruct});
 
   while (1) {
     runSystems(ecs, rendering_system_interest);
@@ -190,12 +194,19 @@ int main(void) {
       break;
     runSystems(ecs, physics_system_interest);
 
+    int down = keysDown();
     touchPosition touch_position;
-    if (held & KEY_TOUCH) {
+    if (down & KEY_TOUCH) {
       touchRead(&touch_position);
       Vec3 &position = ecs.getComponent<Position>(player).pos;
-      position.x = fix::from_int(touch_position.px);
-      position.y = fix::from_int(touch_position.py);
+      Vec3 target_position;
+      target_position.x = fix::from_int(touch_position.px);
+      target_position.y = fix::from_int(touch_position.py);
+      printf("target position: %d %d\n", touch_position.px, touch_position.py);
+      make_fireball(ecs, position, target_position, sprite_id_manager,
+                    fireball_sprite);
+      // position = target_position;
+      printf("shoot!\n");
     }
 
     runSystems(ecs, admin_system_interest);

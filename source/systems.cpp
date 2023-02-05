@@ -1,6 +1,8 @@
 #include "systems.hpp"
 #include "components.hpp"
+#include "ndspp.hpp"
 #include "tecs.hpp"
+#include "util.hpp"
 #include <nds.h>
 #include <nds/arm9/exceptions.h>
 
@@ -48,7 +50,6 @@ void circular_collision_detection(Coordinator &ecs,
   for (const auto a : entities) {
     const Collision &a_collision = ecs.getComponent<Collision>(a);
     const Vec3 &a_position = ecs.getComponent<Position>(a).pos;
-    const nds::fix a_radius_squared = a_collision.radius * a_collision.radius;
     for (const auto b : entities) {
       if (b == a)
         continue;
@@ -56,12 +57,7 @@ void circular_collision_detection(Coordinator &ecs,
       const Collision &b_collision = ecs.getComponent<Collision>(b);
       if ((a_collision.mask & b_collision.layer) != 0) {
         const Vec3 &b_position = ecs.getComponent<Position>(b).pos;
-        const nds::fix x_diff = a_position.x - b_position.x;
-        const nds::fix y_diff = a_position.y - b_position.y;
-        const nds::fix b_radius_squared =
-            b_collision.radius * b_collision.radius;
-        if ((x_diff * x_diff) + (y_diff * y_diff) <
-            (a_radius_squared + b_radius_squared)) {
+        if (circle_circle(a_position, a_collision.radius_squared, b_position, b_collision.radius_squared)) {
           printf("Collision between %d and %d\n", a, b);
           a_collision.callback(ecs, a, b);
         }
