@@ -32,3 +32,11 @@ void make_sprite(Coordinator &ecs, Entity entity,
 //   Entity fireball = ecs.newEntity();
 //   ecs.addComponents(fireball, Position{position}, Velocity{velocity});
 // }
+bool circle_circle(Vec3 a_position, nds::fix a_radius_squared, Vec3 b_position,
+                   nds::fix b_radius_squared) {
+  const nds::fix x_diff = a_position.x - b_position.x;
+  const nds::fix y_diff = a_position.y - b_position.y;
+  return (x_diff * x_diff) + (y_diff * y_diff) <
+         (a_radius_squared + b_radius_squared);
+}
+

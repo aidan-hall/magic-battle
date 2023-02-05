@@ -2,6 +2,7 @@
 #define UTIL_H
 
 #include "components.hpp"
+#include "ndspp.hpp"
 #include "tecs-system.hpp"
 #include "tecs.hpp"
 #include "unusual_id_manager.hpp"
@@ -104,5 +105,7 @@ void make_sprite(Tecs::Coordinator &ecs, Tecs::Entity entity,
 
 void make_fireball(Tecs::Coordinator &ecs, Vec3 position, Vec3 velocity,
                    uint16_t *gfx);
+bool circle_circle(Vec3 a_position, nds::fix a_radius_squared, Vec3 b_position, nds::fix b_radius_squared);
+
 
 #endif /* UTIL_H */

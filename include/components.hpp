@@ -40,7 +40,7 @@ struct DeathMark {};
 struct Collision {
   std::bitset<8> mask;          // Layers this entity collides onto.
   std::bitset<8> layer;         // Layers this entity is on.
-  nds::fix radius;
+  nds::fix radius_squared;
   std::function<void(Tecs::Coordinator&, Tecs::Entity, Tecs::Entity)> callback;
 };
 
