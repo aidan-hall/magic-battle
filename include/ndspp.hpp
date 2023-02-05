@@ -11,8 +11,8 @@ struct fix {
   /* state */
   int32_t bits;
 
-  static fix from_int(int32_t n) { return fix{inttof32(n)}; }
-  static fix from_float(float f) { return fix{floattof32(f)}; }
+  static constexpr fix from_int(int32_t n) { return fix{inttof32(n)}; }
+  static constexpr fix from_float(float f) { return fix{floattof32(f)}; }
 
   /* conversions */
   explicit operator int32_t() const { return f32toint(bits); }
