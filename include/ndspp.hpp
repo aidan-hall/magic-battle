@@ -2,6 +2,7 @@
 #define NDSPP_H
 
 #include "nds/arm9/math.h"
+#include <cmath>
 #include <cstdint>
 
 namespace nds {
@@ -20,6 +21,8 @@ struct fix {
 
   /* methods */
   static inline fix sqrt(const fix &f) { return {sqrtf32(f.bits)}; }
+
+  static inline fix abs(const fix &f) { return {std::abs(f.bits)}; }
 };
 
 inline fix operator*(const fix &a, const fix &b) {
@@ -39,7 +42,7 @@ inline fix operator*(const fix &a, const int32_t &b) {
   return a * fix::from_int(b);
 }
 inline fix operator/(const fix &num, const int32_t &den) {
-  return num/fix::from_int(den);
+  return num / fix::from_int(den);
 }
 inline fix operator+(const fix &a, const int32_t &b) {
   return a + fix::from_int(b);
@@ -54,13 +57,8 @@ inline void operator*=(fix &a, const fix &b) {
 inline void operator/=(fix &num, const fix &den) {
   num = nds::fix{divf32(num.bits, den.bits)};
 }
-inline void operator+=(fix &a, const fix &b) {
-  a = nds::fix{a.bits + b.bits};
-}
-inline void operator-=(fix &a, const fix &b) {
-  a = nds::fix{a.bits - b.bits};
-}
-
+inline void operator+=(fix &a, const fix &b) { a = nds::fix{a.bits + b.bits}; }
+inline void operator-=(fix &a, const fix &b) { a = nds::fix{a.bits - b.bits}; }
 
 inline bool operator<(const fix &lhs, const fix &rhs) {
   return lhs.bits < rhs.bits;
