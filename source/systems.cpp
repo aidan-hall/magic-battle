@@ -27,21 +27,20 @@ void draw_sprites(Coordinator &ecs,
   }
 }
 
-void zombie_touch_movement(Coordinator &ecs,
-                           const std::unordered_set<Entity> &entities) {
-  if (keysHeld() & KEY_TOUCH) {
+void following_ai(Coordinator &ecs,
+                  const std::unordered_set<Entity> &entities) {
+  for (const auto entity : entities) {
+    Vec3 *velocity = &ecs.getComponent<Velocity>(entity).v;
+    const Following &follow = ecs.getComponent<Following>(entity);
+    const Vec3 &position = ecs.getComponent<Position>(entity).pos;
+    const Vec3 &target_position = ecs.getComponent<Position>(follow.target).pos;
 
-    touchPosition touch_position;
-    touchRead(&touch_position);
+    velocity->x = target_position.x - position.x;
+    velocity->y = target_position.y - position.y;
 
-    for (const auto entity : entities) {
-      Vec3 *velocity = &ecs.getComponent<Velocity>(entity).v;
-      const Vec3 &position = ecs.getComponent<Position>(entity).pos;
-      velocity->x = nds::fix::from_int(touch_position.px) - position.x;
-      velocity->y = nds::fix::from_int(touch_position.py) - position.y;
-
-      normalizef32(reinterpret_cast<int32 *>(velocity));
-    }
+    normalizef32(reinterpret_cast<int32 *>(velocity));
+    velocity->x = velocity->x * follow.speed;
+    velocity->y = velocity->y * follow.speed;
   }
 }
 
@@ -57,7 +56,8 @@ void circular_collision_detection(Coordinator &ecs,
       const Collision &b_collision = ecs.getComponent<Collision>(b);
       if ((a_collision.mask & b_collision.layer) != 0) {
         const Vec3 &b_position = ecs.getComponent<Position>(b).pos;
-        if (circle_circle(a_position, a_collision.radius_squared, b_position, b_collision.radius_squared)) {
+        if (circle_circle(a_position, a_collision.radius_squared, b_position,
+                          b_collision.radius_squared)) {
           printf("Collision between %d and %d\n", a, b);
           a_collision.callback(ecs, a, b);
         }

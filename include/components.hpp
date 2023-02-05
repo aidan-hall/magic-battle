@@ -29,6 +29,11 @@ struct SpriteInfo {
 
 struct Zombie {};
 
+struct Following {
+  Tecs::Entity target;
+  nds::fix speed;
+};
+
 struct RenderingSystemTag {};
 
 struct PhysicsSystemTag {};

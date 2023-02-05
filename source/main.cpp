@@ -32,14 +32,17 @@ unusual::id_manager<int, SPRITE_COUNT> sprite_id_manager;
 unusual::id_manager<int, MATRIX_COUNT> affine_index_manager;
 unusual::id_manager<int, 16> palette_index_manager;
 
+enum class Spell {
+  Fireball,
+  Teleport,
+};
+
 using namespace nds;
 
 using namespace Tecs;
 
 int main(void) {
-  consoleDemoInit();
-  printf("Hello world.\n");
-  printf("Hello world.\n");
+  // ECS Setup
   Tecs::Coordinator ecs;
   registerSystemComponents(ecs);
 
@@ -47,7 +50,8 @@ int main(void) {
   const ComponentMask VELOCITY_COMPONENT = ecs.registerComponent<Velocity>();
   const ComponentMask SPRITEINFO_COMPONENT =
       ecs.registerComponent<SpriteInfo>();
-  const ComponentMask ZOMBIE_COMPONENT = ecs.registerComponent<Zombie>();
+  // const ComponentMask ZOMBIE_COMPONENT =
+  ecs.registerComponent<Zombie>();
   const ComponentMask PHYSICSSYSTEMTAG_COMPONENT =
       ecs.registerComponent<PhysicsSystemTag>();
   const ComponentMask RENDERINGSYSTEMTAG_COMPONENT =
@@ -58,6 +62,8 @@ int main(void) {
   const ComponentMask ADMINSYSTEMTAG_COMPONENT =
       ecs.registerComponent<AdminSystemTag>();
   const ComponentMask DEATHMARK_COMPONENT = ecs.registerComponent<DeathMark>();
+
+  const ComponentMask FOLLOWING_COMPONENT = ecs.registerComponent<Following>();
 
   const auto rendering_system_interest =
       makeSystemInterest(ecs, RENDERINGSYSTEMTAG_COMPONENT);
@@ -76,10 +82,10 @@ int main(void) {
                     InterestedClient{ecs.interests.registerInterests(
                         {{POSITION_COMPONENT | VELOCITY_COMPONENT}})});
 
-  ecs.addComponents(
-      ecs.newEntity(), SingleEntitySetSystem{zombie_touch_movement},
-      PhysicsSystemTag{},
-      InterestedClient{ecs.interests.registerInterests({{ZOMBIE_COMPONENT}})});
+  ecs.addComponents(ecs.newEntity(), SingleEntitySetSystem{following_ai},
+                    PhysicsSystemTag{},
+                    InterestedClient{ecs.interests.registerInterests(
+                        {{FOLLOWING_COMPONENT}})});
 
   ecs.addComponents(ecs.newEntity(),
                     SingleEntitySetSystem{circular_collision_detection},
@@ -104,17 +110,16 @@ int main(void) {
                     AdminSystemTag{},
                     InterestedClient{ecs.interests.registerInterests(
                         {{DEATHMARK_COMPONENT | DEATHCALLBACK_COMPONENT}})});
+
+  consoleDemoInit();
+  printf("Hello world.\n");
+  printf("Hello world.\n");
+
   lcdMainOnBottom();
   videoSetMode(MODE_0_2D);
 
   vramSetBankA(VRAM_A_MAIN_SPRITE);
   oamInit(&oamMain, SpriteMapping_1D_32, true);
-
-  // fireball
-  // constexpr int fireball_width = 8;
-  // constexpr int fireball_height = fireball_width;
-  // constexpr SpriteSize fireball_size =
-  //     sprite_size(fireball_width, fireball_height);
 
   // Load palettes and sprite data
   vramSetBankF(VRAM_F_LCD);
@@ -132,32 +137,7 @@ int main(void) {
                              VRAM_F_EXT_SPR_PALETTE);
   vramSetBankF(VRAM_F_SPRITE_EXT_PALETTE);
 
-  std::array<Tecs::Entity, 5> zombies;
-  std::for_each(zombies.begin(), zombies.end(),
-                [&ecs](auto &e) { e = ecs.newEntity(); });
-  {
-    int x = 5;
-    int y = 10;
-    int a = degreesToAngle(0);
-
-    const nds::fix zombie_radius_squared =
-        radius_squared_from_diameter(nds::fix::from_int(zombie_sprite.width));
-    for (const auto zombie : zombies) {
-      make_sprite(ecs, zombie, sprite_id_manager, zombie_sprite);
-      ecs.addComponent<Zombie>(zombie);
-
-      ecs.addComponents(
-          zombie, Position{{fix::from_int(x), fix::from_int(y), 0}},
-          Velocity{{fix::from_float(1.5f), fix::from_float(1.5f), 0}},
-          Collision{PLAYER_ATTACK_LAYER, ZOMBIE_LAYER, zombie_radius_squared,
-                    self_destruct});
-
-      x += 20;
-      y += 30;
-      a += DEGREES_IN_CIRCLE / (2 * zombies.size());
-    }
-  }
-
+  // Player setup
   Entity player = ecs.newEntity();
   ecs.addComponents(player,
                     Position{Vec3{fix::from_int(SCREEN_WIDTH / 2),
@@ -170,6 +150,32 @@ int main(void) {
                               radius_squared_from_diameter(
                                   nds::fix::from_int(player_sprite.width)),
                               self_destruct});
+
+  // Zombie setup
+  std::array<Tecs::Entity, 5> zombies;
+  std::for_each(zombies.begin(), zombies.end(),
+                [&ecs](auto &e) { e = ecs.newEntity(); });
+  {
+    int x = SCREEN_WIDTH - 5;
+    int y = 10;
+
+    const nds::fix zombie_radius_squared =
+        radius_squared_from_diameter(nds::fix::from_int(zombie_sprite.width));
+    for (const auto zombie : zombies) {
+      make_sprite(ecs, zombie, sprite_id_manager, zombie_sprite);
+      ecs.addComponent<Zombie>(zombie);
+
+      ecs.addComponents(
+          zombie, Position{{fix::from_int(x), fix::from_int(y), 0}},
+          Velocity{{fix::from_float(1.5f), fix::from_float(1.5f), 0}},
+          Collision{PLAYER_ATTACK_LAYER, ZOMBIE_LAYER, zombie_radius_squared,
+                    self_destruct},
+          Following{player, nds::fix::from_float(0.5f)});
+
+      x -= 20;
+      y += 30;
+    }
+  }
 
   while (1) {
     runSystems(ecs, rendering_system_interest);
@@ -202,11 +208,15 @@ int main(void) {
       Vec3 target_position;
       target_position.x = fix::from_int(touch_position.px);
       target_position.y = fix::from_int(touch_position.py);
-      printf("target position: %d %d\n", touch_position.px, touch_position.py);
-      make_fireball(ecs, position, target_position, sprite_id_manager,
-                    fireball_sprite);
-      // position = target_position;
-      printf("shoot!\n");
+      if (held & (KEY_L | KEY_R)) {
+        // teleport
+        position = target_position;
+      } else {
+
+        make_fireball(ecs, position, target_position, sprite_id_manager,
+                      fireball_sprite);
+        printf("shoot!\n");
+      }
     }
 
     runSystems(ecs, admin_system_interest);
