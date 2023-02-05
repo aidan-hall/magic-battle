@@ -20,10 +20,19 @@ void apply_velocity(Tecs::Coordinator &ecs,
 void draw_sprites(Coordinator &ecs,
                   const std::unordered_set<Entity> &entities) {
   for (const Entity entity : entities) {
-    const auto id = ecs.getComponent<SpriteInfo>(entity);
-    const auto transform = ecs.getComponent<Position>(entity);
-    oamSetXY(&oamMain, id.id, static_cast<int32_t>(transform.pos.x - id.width2),
-             static_cast<int32_t>(transform.pos.y - id.height2));
+    const auto info = ecs.getComponent<SpriteInfo>(entity);
+    const auto position = ecs.getComponent<Position>(entity).pos;
+    if (nds::fix::from_int(0) <= position.x and
+        position.x <= nds::fix::from_int(SCREEN_WIDTH) and
+        nds::fix::from_int(0) <= position.y and
+        position.y <= nds::fix::from_int(SCREEN_HEIGHT)) {
+      oamSetHidden(&oamMain, info.id, false);
+      oamSetXY(&oamMain, info.id,
+               static_cast<int32_t>(position.x - info.width2),
+               static_cast<int32_t>(position.y - info.height2));
+    } else {
+      oamSetHidden(&oamMain, info.id, true);
+    }
   }
 }
 
