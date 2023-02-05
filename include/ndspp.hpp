@@ -48,6 +48,19 @@ inline fix operator-(const fix &a, const int32_t &b) {
   return a - fix::from_int(b);
 }
 
+inline void operator*=(fix &a, const fix &b) {
+  a = nds::fix{mulf32(a.bits, b.bits)};
+}
+inline void operator/=(fix &num, const fix &den) {
+  num = nds::fix{divf32(num.bits, den.bits)};
+}
+inline void operator+=(fix &a, const fix &b) {
+  a = nds::fix{a.bits + b.bits};
+}
+inline void operator-=(fix &a, const fix &b) {
+  a = nds::fix{a.bits - b.bits};
+}
+
 
 inline bool operator<(const fix &lhs, const fix &rhs) {
   return lhs.bits < rhs.bits;
