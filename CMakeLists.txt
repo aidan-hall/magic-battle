@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # Executable
 add_executable(MagicBattle source/main.cpp source/ndspp.cpp source/systems.cpp source/util.cpp)
 
-target_include_directories(MagicBattle PUBLIC include)
+target_include_directories(MagicBattle PUBLIC include ${CMAKE_CURRENT_BINARY_DIR})
 
 target_compile_options(MagicBattle PRIVATE
   -Wpedantic
@@ -36,6 +36,13 @@ grit_add_binary_target(ExplosionSprite sprites/explosion.png DEPTH 8 NO_MAP OPTI
 dkp_add_embedded_binary_library(Sprites PlayerSprite ZombieSprite FireballSprite ExplosionSprite)
 
 target_link_libraries(MagicBattle PUBLIC Sprites)
+
+# Sound
+
+mm_add_soundbank_target(Sounds HEADER soundbank.h INPUTS sounds/explosion.wav sounds/teleport.wav sounds/hit.wav sounds/fireball.wav)
+dkp_add_embedded_binary_library(SoundsLib Sounds)
+target_link_libraries(MagicBattle PUBLIC SoundsLib)
+target_link_libraries(MagicBattle PUBLIC "-lmm9")
 
 # Entity Component System
 add_subdirectory(external/tecs)

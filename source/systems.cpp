@@ -101,7 +101,8 @@ void affine_index_reclamation(Coordinator &ecs, const Entity entity) {
 
 void affine_rendering(Coordinator &ecs, const Entity entity) {
   const auto affine = ecs.getComponent<Affine>(entity);
-  printf("entity: %d scale: %ld index: %ld\n", entity, affine.scale, affine.affine_index);
+  printf("entity: %d scale: %ld index: %ld\n", entity, affine.scale,
+         affine.affine_index);
   oamRotateScale(&oamMain, affine.affine_index, affine.rotation, affine.scale,
                  affine.scale);
 }

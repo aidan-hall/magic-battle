@@ -1,7 +1,9 @@
+#include "Sounds_bin.h"
 #include "components.hpp"
 #include "nds/arm9/sprite.h"
 #include "nds/arm9/video.h"
 #include "ndspp.hpp"
+#include "soundbank.h"
 #include "systems.hpp"
 #include "tecs-system.hpp"
 #include "tecs.hpp"
@@ -21,6 +23,8 @@
 #include <cstdint>
 #include <cstdlib>
 #include <gl2d.h>
+#include <maxmod9.h>
+#include <mm_types.h>
 #include <nds.h>
 #include <nds/arm9/console.h>
 #include <nds/arm9/input.h>
@@ -216,6 +220,13 @@ int main(void) {
                     InterestedClient{ecs.interests.registerInterests(
                         {{DEATHMARK_COMPONENT}})});
 
+  // NDS Setup
+  mmInitDefaultMem((mm_addr)Sounds_bin);
+  mmLoadEffect(SFX_EXPLOSION);
+  mmLoadEffect(SFX_TELEPORT);
+  mmLoadEffect(SFX_HIT);
+  mmLoadEffect(SFX_FIREBALL);
+
   consoleDemoInit();
 
   lcdMainOnBottom();
@@ -320,15 +331,18 @@ int main(void) {
         // teleport
         position = target_position;
         magic_meter -= TELEPORT_MAGIC;
+        mmEffect(SFX_TELEPORT);
       } else if (selected_spell == Spell::Fireball and
                  magic_meter > FIREBALL_MAGIC) {
 
         make_fireball(ecs, position, target_position, sprite_id_manager,
                       fireball_sprite);
+        mmEffect(SFX_FIREBALL);
         magic_meter -= FIREBALL_MAGIC;
       } else if (selected_spell == Spell::Explosion and
                  magic_meter > EXPLOSION_MAGIC) {
         make_explosion(ecs, position, sprite_id_manager, explosion_sprite);
+        mmEffect(SFX_EXPLOSION);
         magic_meter -= EXPLOSION_MAGIC;
       }
     }

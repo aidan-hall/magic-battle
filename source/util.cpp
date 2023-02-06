@@ -3,10 +3,12 @@
 #include "ndspp.hpp"
 #include "tecs.hpp"
 #include "unusual_id_manager.hpp"
+#include <maxmod9.h>
 #include <nds.h>
 #include <nds/arm9/math.h>
 #include <nds/arm9/sprite.h>
 #include <nds/timers.h>
+#include <soundbank.h>
 
 using namespace Tecs;
 void make_sprite(Coordinator &ecs, Entity entity,
@@ -75,10 +77,9 @@ make_zombie(Coordinator &ecs, Vec3 position, Tecs::Entity player,
   return zombie;
 }
 
-Entity
-make_explosion(Coordinator &ecs, Vec3 position,
-               unusual::id_manager<int, SPRITE_COUNT> &sprite_id_manager,
-               SpriteData &sprite) {
+Entity make_explosion(Coordinator &ecs, Vec3 position,
+                      unusual::id_manager<int, SPRITE_COUNT> &sprite_id_manager,
+                      SpriteData &sprite) {
   Entity explosion = ecs.newEntity();
 
   make_sprite(ecs, explosion, sprite_id_manager, sprite);
@@ -92,8 +93,7 @@ make_explosion(Coordinator &ecs, Vec3 position,
                 radius_squared_from_diameter(nds::fix::from_int(sprite.width)),
                 take_damage},
       // Affine{affine_index, 0, 1 << 8},
-      Health{20},
-      TimerCallback{cpuGetTiming() + BUS_CLOCK * 1, self_destruct});
+      Health{20}, TimerCallback{cpuGetTiming() + BUS_CLOCK * 1, self_destruct});
   return explosion;
 }
 
@@ -111,5 +111,6 @@ void self_destruct(Coordinator &ecs, Entity self) {
 
 void take_damage(Coordinator &ecs, Entity self, Entity other) {
   std::ignore = other;
+  mmEffect(SFX_HIT);
   ecs.getComponent<Health>(self).value--;
 }
