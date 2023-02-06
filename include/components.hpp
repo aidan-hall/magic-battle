@@ -3,6 +3,7 @@
 #include "ndspp.hpp"
 #include "tecs.hpp"
 #include <bitset>
+#include <cstdint>
 #include <functional>
 
 struct Vec3 {
@@ -17,6 +18,12 @@ struct Position {
 
 struct Velocity {
   Vec3 v;
+};
+
+struct Affine {
+  int32_t affine_index;
+  int32_t rotation;
+  int32_t scale;
 };
 
 struct SpriteInfo {
@@ -39,8 +46,13 @@ struct RenderingSystemTag {};
 struct PhysicsSystemTag {};
 
 struct AdminSystemTag {};
+struct CleanupSystemTag {};
 
 struct DeathMark {};
+
+struct Health {
+  int8_t value;
+};
 
 struct Collision {
   std::bitset<8> mask;          // Layers this entity collides onto.
@@ -49,8 +61,9 @@ struct Collision {
   std::function<void(Tecs::Coordinator&, Tecs::Entity, Tecs::Entity)> callback;
 };
 
-struct DeathCallback {
-  std::function<void(Tecs::Coordinator&, Tecs::Entity)> callback;
+struct TimerCallback {
+  uint32_t time;
+  std::function<void(Tecs::Coordinator&, const Tecs::Entity)> callback;
 };
 
 enum CollisionLayers {

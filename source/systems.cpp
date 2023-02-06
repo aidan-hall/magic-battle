@@ -5,6 +5,11 @@
 #include "util.hpp"
 #include <nds.h>
 #include <nds/arm9/exceptions.h>
+#include <nds/arm9/sprite.h>
+
+extern unusual::id_manager<int, SPRITE_COUNT> sprite_id_manager;
+extern unusual::id_manager<int, MATRIX_COUNT> affine_index_manager;
+extern unusual::id_manager<int, 16> palette_index_manager;
 
 using namespace Tecs;
 void apply_velocity(Tecs::Coordinator &ecs,
@@ -36,7 +41,7 @@ void draw_sprites(Coordinator &ecs,
   }
 }
 
-constexpr nds::fix FOLLOW_CUTOFF = nds::fix::from_float(2.0f);
+constexpr nds::fix FOLLOW_CUTOFF = nds::fix::from_float(3.0f);
 
 void following_ai(Coordinator &ecs,
                   const std::unordered_set<Entity> &entities) {
@@ -81,4 +86,22 @@ void circular_collision_detection(Coordinator &ecs,
       }
     }
   }
+}
+
+void sprite_id_reclamation(Coordinator &ecs, const Entity entity) {
+  const auto id = ecs.getComponent<SpriteInfo>(entity).id;
+  // Hide the sprite
+  oamClearSprite(&oamMain, id);
+  sprite_id_manager.release(id);
+}
+void affine_index_reclamation(Coordinator &ecs, const Entity entity) {
+  const auto index = ecs.getComponent<Affine>(entity).affine_index;
+  affine_index_manager.release(index);
+}
+
+void affine_rendering(Coordinator &ecs, const Entity entity) {
+  const auto affine = ecs.getComponent<Affine>(entity);
+  printf("entity: %d scale: %ld index: %ld\n", entity, affine.scale, affine.affine_index);
+  oamRotateScale(&oamMain, affine.affine_index, affine.rotation, affine.scale,
+                 affine.scale);
 }

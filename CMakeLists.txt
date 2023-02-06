@@ -31,8 +31,9 @@ target_compile_options(MagicBattle PRIVATE
 grit_add_binary_target(PlayerSprite sprites/player.png DEPTH 8 NO_MAP OPTIONS -Mh 2 -Mw 2)
 grit_add_binary_target(ZombieSprite sprites/zombie.png DEPTH 8 NO_MAP OPTIONS -Mh 2 -Mw 2)
 grit_add_binary_target(FireballSprite sprites/fireball.png DEPTH 8 NO_MAP OPTIONS)
+grit_add_binary_target(ExplosionSprite sprites/explosion.png DEPTH 8 NO_MAP OPTIONS -Mh 8 -Mw 8)
 
-dkp_add_embedded_binary_library(Sprites PlayerSprite ZombieSprite FireballSprite)
+dkp_add_embedded_binary_library(Sprites PlayerSprite ZombieSprite FireballSprite ExplosionSprite)
 
 target_link_libraries(MagicBattle PUBLIC Sprites)
 

@@ -7,6 +7,8 @@
 #include "tecs.hpp"
 #include "unusual_id_manager.hpp"
 #include "util.hpp"
+#include <ExplosionSprite_gfx.h>
+#include <ExplosionSprite_pal.h>
 #include <FireballSprite_gfx.h>
 #include <FireballSprite_pal.h>
 #include <PlayerSprite_gfx.h>
@@ -24,6 +26,8 @@
 #include <nds/arm9/input.h>
 #include <nds/arm9/videoGL.h>
 #include <nds/dma.h>
+#include <nds/input.h>
+#include <nds/timers.h>
 #include <nds/touch.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -37,19 +41,24 @@ unusual::id_manager<int, 16> palette_index_manager;
 enum class Spell {
   Fireball,
   Teleport,
+  Explosion,
 };
 
 std::unordered_map<Spell, const char *> spell_strings = {
     {Spell::Fireball, "fireball"},
     {Spell::Teleport, "teleport"},
+    {Spell::Explosion, "explosion"},
 };
 
 Spell selected_spell = Spell::Fireball;
 
 constexpr nds::fix MAX_MAGIC = nds::fix::from_float(100.0f);
 constexpr nds::fix MAGIC_BUILD_RATE = nds::fix::from_float(0.3f);
+
 constexpr nds::fix FIREBALL_MAGIC = nds::fix::from_float(25.0f);
-constexpr nds::fix TELEPORT_MAGIC = nds::fix::from_float(50.0f);
+constexpr nds::fix TELEPORT_MAGIC = nds::fix::from_float(25.0f);
+constexpr nds::fix EXPLOSION_MAGIC = nds::fix::from_float(50.0f);
+
 nds::fix magic_meter = MAX_MAGIC;
 
 constexpr nds::fix FIX_SCREEN_WIDTH = nds::fix::from_int(SCREEN_WIDTH);
@@ -77,13 +86,17 @@ int main(void) {
   const ComponentMask RENDERINGSYSTEMTAG_COMPONENT =
       ecs.registerComponent<RenderingSystemTag>();
   const ComponentMask COLLISION_COMPONENT = ecs.registerComponent<Collision>();
-  const ComponentMask DEATHCALLBACK_COMPONENT =
-      ecs.registerComponent<DeathCallback>();
   const ComponentMask ADMINSYSTEMTAG_COMPONENT =
       ecs.registerComponent<AdminSystemTag>();
+  const ComponentMask CLEANUPSYSTEMTAG_COMPONENT =
+      ecs.registerComponent<CleanupSystemTag>();
   const ComponentMask DEATHMARK_COMPONENT = ecs.registerComponent<DeathMark>();
 
   const ComponentMask FOLLOWING_COMPONENT = ecs.registerComponent<Following>();
+  // const ComponentMask AFFINE_COMPONENT = ecs.registerComponent<Affine>();
+  const ComponentMask TIMERCALLBACK_COMPONENT =
+      ecs.registerComponent<TimerCallback>();
+  const ComponentMask HEALTH_COMPONENT = ecs.registerComponent<Health>();
 
   const auto rendering_system_interest =
       makeSystemInterest(ecs, RENDERINGSYSTEMTAG_COMPONENT);
@@ -91,11 +104,18 @@ int main(void) {
       makeSystemInterest(ecs, PHYSICSSYSTEMTAG_COMPONENT);
   const auto admin_system_interest =
       makeSystemInterest(ecs, ADMINSYSTEMTAG_COMPONENT);
+  const auto cleanup_system_interest =
+      makeSystemInterest(ecs, CLEANUPSYSTEMTAG_COMPONENT);
 
   ecs.addComponents(ecs.newEntity(), SingleEntitySetSystem{draw_sprites},
                     RenderingSystemTag{},
                     InterestedClient{ecs.interests.registerInterests(
                         {{POSITION_COMPONENT | SPRITEINFO_COMPONENT}})});
+
+  // ecs.addComponents(
+  //     ecs.newEntity(), PerEntitySystem{affine_rendering},
+  //     RenderingSystemTag{},
+  //     InterestedClient{ecs.interests.registerInterests({{AFFINE_COMPONENT}})});
 
   ecs.addComponents(ecs.newEntity(), SingleEntitySetSystem{apply_velocity},
                     PhysicsSystemTag{},
@@ -113,23 +133,88 @@ int main(void) {
                     InterestedClient{ecs.interests.registerInterests(
                         {{POSITION_COMPONENT | COLLISION_COMPONENT}})});
 
+  ecs.addComponents(
+      ecs.newEntity(),
+      SingleEntitySetSystem{
+          [](Coordinator &ecs, const std::unordered_set<Entity> &entities) {
+            const uint32_t now = cpuGetTiming();
+            for (const auto entity : entities) {
+
+              const auto tc = ecs.getComponent<TimerCallback>(entity);
+              if (tc.time <= now) {
+                tc.callback(ecs, entity);
+              }
+            }
+          }},
+      AdminSystemTag{},
+      InterestedClient{
+          ecs.interests.registerInterests({{TIMERCALLBACK_COMPONENT}})});
+
+  ecs.addComponents(
+      ecs.newEntity(),
+      SingleEntitySetSystem{
+          [](Coordinator &ecs, const std::unordered_set<Entity> &entities) {
+            for (const auto entity : entities) {
+
+              const auto health = ecs.getComponent<Health>(entity);
+              if (health.value <= 0) {
+                // TODO: Resolve this in 1 frame
+                ecs.addComponent<DeathMark>(entity);
+                // ecs.queueDestroyEntity(entity);
+              }
+            }
+          }},
+      AdminSystemTag{},
+      InterestedClient{ecs.interests.registerInterests({{HEALTH_COMPONENT}})});
+
+  // ecs.addComponents(
+  //     ecs.newEntity(),
+  //     PerEntitySystem{[](Coordinator &ecs, const Entity entity) {
+  //       Collision &collision = ecs.getComponent<Collision>(entity);
+  //       const nds::fix &width2 = ecs.getComponent<SpriteInfo>(entity).width2;
+  //       const Affine &affine = ecs.getComponent<Affine>(entity);
+  //       const nds::fix scaled_radius = nds::fix{affine.scale << 4} * width2;
+  //       printf("scaled radius: %f\n", static_cast<float>(scaled_radius));
+  //       collision.radius_squared = scaled_radius * scaled_radius;
+  //     }},
+  //     PhysicsSystemTag{},
+  //     InterestedClient{ecs.interests.registerInterests(
+  //         {{COLLISION_COMPONENT | AFFINE_COMPONENT |
+  //         SPRITEINFO_COMPONENT}})});
+
+  // ecs.addComponents(ecs.newEntity(),
+  //                   PerEntitySystem{[](Coordinator &ecs, const Entity entity)
+  //                   {
+  //                     Affine &affine = ecs.getComponent<Affine>(entity);
+  //                     const int32_t rate =
+  //                         ecs.getComponent<GrowthRate>(entity).rate;
+  //                     affine.scale += rate;
+  //                     if (affine.scale > 1 << 10) {
+  //                       ecs.addComponent<DeathMark>(entity);
+  //                     }
+  //                   }},
+  //                   PhysicsSystemTag{},
+  //                   InterestedClient{ecs.interests.registerInterests(
+  //                       {{AFFINE_COMPONENT | GROWTHRATE_COMPONENT}})});
+
   // Death Mark Handling.
+  ecs.addComponents(ecs.newEntity(), PerEntitySystem{sprite_id_reclamation},
+                    CleanupSystemTag{},
+                    InterestedClient{ecs.interests.registerInterests(
+                        {{DEATHMARK_COMPONENT | SPRITEINFO_COMPONENT}})});
+  // ecs.addComponents(ecs.newEntity(),
+  // PerEntitySystem{affine_index_reclamation},
+  //                   AdminSystemTag{},
+  //                   InterestedClient{ecs.interests.registerInterests(
+  //                       {{DEATHMARK_COMPONENT | AFFINE_COMPONENT}})});
+
   ecs.addComponents(ecs.newEntity(),
                     PerEntitySystem{[](Coordinator &ecs, const Entity entity) {
                       ecs.queueDestroyEntity(entity);
                     }},
-                    AdminSystemTag{},
+                    CleanupSystemTag{},
                     InterestedClient{ecs.interests.registerInterests(
-                        {{DEATHMARK_COMPONENT, DEATHCALLBACK_COMPONENT}})});
-  ecs.addComponents(ecs.newEntity(),
-                    PerEntitySystem{[](Coordinator &ecs, const Entity entity) {
-                      ecs.getComponent<DeathCallback>(entity).callback(ecs,
-                                                                       entity);
-                      ecs.queueDestroyEntity(entity);
-                    }},
-                    AdminSystemTag{},
-                    InterestedClient{ecs.interests.registerInterests(
-                        {{DEATHMARK_COMPONENT | DEATHCALLBACK_COMPONENT}})});
+                        {{DEATHMARK_COMPONENT}})});
 
   consoleDemoInit();
 
@@ -153,6 +238,10 @@ int main(void) {
                              palette_index_manager, SpriteColorFormat_256Color,
                              FireballSprite_pal, FireballSprite_pal_size,
                              VRAM_F_EXT_SPR_PALETTE);
+  SpriteData explosion_sprite(&oamMain, ExplosionSprite_gfx, 64, 64, 1,
+                              palette_index_manager, SpriteColorFormat_256Color,
+                              ExplosionSprite_pal, ExplosionSprite_pal_size,
+                              VRAM_F_EXT_SPR_PALETTE);
   vramSetBankF(VRAM_F_SPRITE_EXT_PALETTE);
 
   // Player target setup
@@ -163,16 +252,16 @@ int main(void) {
 
   // Player setup
   Entity player = ecs.newEntity();
+  printf("Player is entity %d\n", player);
   ecs.addComponents(player, Position{player_start_pos}, Velocity{},
-                    Following{player_target, nds::fix::from_float(5.0f)});
-
-  make_sprite(ecs, player, sprite_id_manager, player_sprite);
-
-  ecs.addComponents(player,
-                    Collision{0, 0,
+                    Following{player_target, nds::fix::from_float(5.0f)},
+                    Health{10},
+                    Collision{ZOMBIE_LAYER, PLAYER_LAYER,
                               radius_squared_from_diameter(
                                   nds::fix::from_int(player_sprite.width)),
-                              self_destruct});
+                              take_damage});
+
+  make_sprite(ecs, player, sprite_id_manager, player_sprite);
 
   // Zombie setup
   std::array<Tecs::Entity, 20> zombies;
@@ -190,10 +279,13 @@ int main(void) {
     }
   }
 
+  cpuStartTiming(0);
   while (1) {
     runSystems(ecs, rendering_system_interest);
+    // printf("Player health: %d\n", ecs.getComponent<Health>(player).value);
 
     swiWaitForVBlank();
+    consoleClear();
     oamUpdate(&oamMain);
     scanKeys();
     int held = keysCurrent();
@@ -204,14 +296,14 @@ int main(void) {
       zombie_sprite.set_active_tile(0);
     }
 
-    consoleClear();
-
     if (held & KEY_START)
       break;
     runSystems(ecs, physics_system_interest);
 
-    if (held & (KEY_L | KEY_R)) {
+    if (held & (KEY_LEFT | KEY_Y)) {
       selected_spell = Spell::Teleport;
+    } else if (held & (KEY_A | KEY_RIGHT)) {
+      selected_spell = Spell::Explosion;
     } else {
       selected_spell = Spell::Fireball;
     }
@@ -234,6 +326,10 @@ int main(void) {
         make_fireball(ecs, position, target_position, sprite_id_manager,
                       fireball_sprite);
         magic_meter -= FIREBALL_MAGIC;
+      } else if (selected_spell == Spell::Explosion and
+                 magic_meter > EXPLOSION_MAGIC) {
+        make_explosion(ecs, position, sprite_id_manager, explosion_sprite);
+        magic_meter -= EXPLOSION_MAGIC;
       }
     }
 
@@ -243,9 +339,14 @@ int main(void) {
       magic_meter = MAX_MAGIC;
     }
 
-    printf("Magic: %f\n\nFireball: %f\nTeleport: %f\n\nSelected spell: %s\n",
+    printf("Time Alive: %ld\n\nHealth: %ld\nMagic: %f\n\nFireball: "
+           "%f\nTeleport: %f\nExplosion: "
+           "%f\nSelected spell: %s\n ",
+           static_cast<int32_t>(nds::fix::from_int(cpuGetTiming()/BUS_CLOCK)),
+           static_cast<int32_t>(ecs.getComponent<Health>(player).value),
            static_cast<float>(magic_meter), static_cast<float>(FIREBALL_MAGIC),
            static_cast<float>(TELEPORT_MAGIC),
+           static_cast<float>(EXPLOSION_MAGIC),
            spell_strings.at(selected_spell));
 
     // Randomly spawn a zombie
@@ -274,10 +375,12 @@ int main(void) {
         zombie_position.y = FIX_SCREEN_HEIGHT + OFFSCREEN_MARGIN;
         break;
       }
-      make_zombie(ecs, zombie_position, player, ZOMBIE_SPEED, sprite_id_manager, zombie_sprite);
+      make_zombie(ecs, zombie_position, player, ZOMBIE_SPEED, sprite_id_manager,
+                  zombie_sprite);
     }
 
     runSystems(ecs, admin_system_interest);
+    runSystems(ecs, cleanup_system_interest);
     ecs.destroyQueued();
   }
 }
