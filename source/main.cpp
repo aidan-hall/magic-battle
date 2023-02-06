@@ -340,13 +340,13 @@ int main(void) {
     }
 
     printf("Time Alive: %ld\n\nHealth: %ld\nMagic: %f\n\nFireball: "
-           "%f\nTeleport: %f\nExplosion: "
-           "%f\nSelected spell: %s\n ",
-           static_cast<int32_t>(nds::fix::from_int(cpuGetTiming()/BUS_CLOCK)),
+           "%ld\nTeleport (Left/Y): %ld\nExplosion (Right/A): "
+           "%ld\nSelected spell: %s\n ",
+           static_cast<int32_t>(nds::fix::from_int(cpuGetTiming() / BUS_CLOCK)),
            static_cast<int32_t>(ecs.getComponent<Health>(player).value),
-           static_cast<float>(magic_meter), static_cast<float>(FIREBALL_MAGIC),
-           static_cast<float>(TELEPORT_MAGIC),
-           static_cast<float>(EXPLOSION_MAGIC),
+           static_cast<float>(magic_meter), static_cast<int32_t>(FIREBALL_MAGIC),
+           static_cast<int32_t>(TELEPORT_MAGIC),
+           static_cast<int32_t>(EXPLOSION_MAGIC),
            spell_strings.at(selected_spell));
 
     // Randomly spawn a zombie
