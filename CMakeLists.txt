@@ -32,8 +32,11 @@ grit_add_binary_target(PlayerSprite sprites/player.png DEPTH 8 NO_MAP OPTIONS -M
 grit_add_binary_target(ZombieSprite sprites/zombie.png DEPTH 8 NO_MAP OPTIONS -Mh 2 -Mw 2)
 grit_add_binary_target(FireballSprite sprites/fireball.png DEPTH 8 NO_MAP OPTIONS)
 grit_add_binary_target(ExplosionSprite sprites/explosion.png DEPTH 8 NO_MAP OPTIONS -Mh 8 -Mw 8)
+grit_add_binary_target(StoneBackground sprites/background.png NO_MAP BITMAP)
 
-dkp_add_embedded_binary_library(Sprites PlayerSprite ZombieSprite FireballSprite ExplosionSprite)
+grit_add_nds_icon_target(Icon sprites/icon.bmp)
+
+dkp_add_embedded_binary_library(Sprites PlayerSprite ZombieSprite FireballSprite ExplosionSprite StoneBackground)
 
 target_link_libraries(MagicBattle PUBLIC Sprites)
 
@@ -49,6 +52,6 @@ add_subdirectory(external/tecs)
 target_link_libraries(MagicBattle PUBLIC tecs)
 
 # Make the NDS file!
-nds_create_rom(MagicBattle)
+nds_create_rom(MagicBattle ICON Icon NAME "Magic Battle NDS" SUBTITLE1 "Aidan Hall" SUBTITLE2 "https://aidan-hall.itch.io")
 
 file(CREATE_LINK "${CMAKE_BINARY_DIR}/compile_commands.json" "${CMAKE_SOURCE_DIR}/compile_commands.json" SYMBOLIC)
