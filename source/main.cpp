@@ -85,18 +85,6 @@ using namespace nds;
 
 using namespace Tecs;
 
-void wait_for_start() {
-  while (1) {
-    swiWaitForVBlank();
-    scanKeys();
-    // Burn RNG values
-    rand();
-    int pressed = keysDown();
-    if (pressed & KEY_START)
-      break;
-  }
-}
-
 int main(void) {
   srand(PersonalData->rtcOffset % UINT16_MAX);
   // NDS Setup

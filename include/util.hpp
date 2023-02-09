@@ -13,55 +13,9 @@
 #include <nds/dma.h>
 #include <span>
 
-constexpr inline SpriteSize sprite_size(int width, int height) {
-  switch (width) {
-  case 8:
-    switch (height) {
-    case 8:
-      return SpriteSize_8x8;
-    case 16:
-      return SpriteSize_8x16;
-    case 32:
-      return SpriteSize_8x32;
-    }
-    break;
-  case 16:
-    switch (height) {
-    case 8:
-      return SpriteSize_16x8;
-    case 16:
-      return SpriteSize_16x16;
-    case 32:
-      return SpriteSize_16x32;
-    }
-    break;
-  case 32:
-    switch (height) {
-    case 8:
-      return SpriteSize_32x8;
-    case 16:
-      return SpriteSize_32x16;
-    case 32:
-      return SpriteSize_32x32;
-    case 64:
-      return SpriteSize_32x64;
-    }
-    break;
-  case 64:
-    switch (height) {
-    case 32:
-      return SpriteSize_64x32;
-    case 64:
-      return SpriteSize_64x64;
-    }
-    break;
-  default:
-    // Invalid width-height combination.
-    assert(false);
-  }
-  assert(false);
-  return SpriteSize_8x8;
-}
+void wait_for_start();
+
+constexpr SpriteSize sprite_size(int width, int height);
 
 struct SpriteData {
   SpriteSize size;
@@ -78,25 +32,10 @@ struct SpriteData {
   SpriteData(OamState *oam, const uint8_t *gfx, int width, int height,
              int tiles, unusual::id_manager<int, 16> &palette_index_manager,
              SpriteColorFormat color_format, const uint8_t *palette,
-             int palette_length, _ext_palette palette_memory)
-      : size{sprite_size(width, height)}, width{width}, height{height},
-        tiles{tiles}, palette_index_manager{palette_index_manager},
-        palette_index{palette_index_manager.allocate()},
-        color_format{color_format}, gfx{gfx},
-        vram_memory{oamAllocateGfx(oam, size, color_format)}, oam{oam} {
-    set_active_tile(0);
-    dmaCopy(palette, &palette_memory[palette_index][0], palette_length);
-  }
-  ~SpriteData() {
-    oamFreeGfx(oam, gfx);
-    palette_index_manager.release(palette_index);
-  }
+             int palette_length, _ext_palette palette_memory);
+  ~SpriteData();
 
-  void set_active_tile(int n) {
-    assert(0 <= n and n < tiles);
-    dmaCopy(gfx + SPRITE_SIZE_PIXELS(size) * n, vram_memory,
-            SPRITE_SIZE_PIXELS(size));
-  }
+  void set_active_tile(int n);
 };
 
 void make_sprite(Tecs::Coordinator &ecs, Tecs::Entity entity,
