@@ -307,7 +307,7 @@ int main(void) {
     //     InterestedClient{ecs.interests.registerInterests({{~0}})});
 
     // Player target setup
-    const Vec3 player_start_pos = Vec3{fix::from_int(SCREEN_WIDTH / 2),
+    constexpr Vec3 player_start_pos = Vec3{fix::from_int(SCREEN_WIDTH / 2),
                                        fix::from_int(SCREEN_HEIGHT / 2), 0};
     Entity player_target = ecs.newEntity();
     ecs.addComponents(player_target, Position{player_start_pos});
